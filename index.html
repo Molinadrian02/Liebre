@@ -178,6 +178,53 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--mute
 .ed-list{display:flex;flex-direction:column;gap:10px}
 .confirm{color:var(--fast);font-weight:600}
 
+/* ---- Plan ---- */
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.daychip{min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--bg);font-weight:600;cursor:pointer}
+.daychip[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.today{background:var(--surface);border:2px solid var(--accent);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:10px}
+.today h3{font-size:30px}
+.refline{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px;color:var(--muted)}
+.refline b{color:var(--fg);font-variant-numeric:tabular-nums}
+.cal{display:grid;grid-template-columns:34px repeat(7,minmax(0,1fr));gap:4px;font-variant-numeric:tabular-nums}
+.cal .h{font-size:12px;color:var(--muted);text-align:center;font-weight:600}
+.cal .wk{font-size:12px;color:var(--muted);display:flex;align-items:center;font-weight:600}
+.cal .wk.cur{color:var(--accent)}
+.cell{aspect-ratio:1;max-width:100%;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--muted)}
+.cell.plan{border:1.5px solid var(--muted);color:var(--fg)}
+.cell.done{background:var(--in);color:var(--bg);font-weight:700}
+.cell.missed{background:var(--fast-soft);color:var(--fast);border:1.5px solid var(--fast)}
+.cell.race{background:var(--accent);color:var(--accent-fg);font-weight:700}
+.cell.now{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--fg)}
+.legend2{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--muted);margin-top:10px}
+.legend2 i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:6px;vertical-align:-1px}
+.sess{display:grid;grid-template-columns:44px minmax(0,1fr);gap:4px 12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.sess:last-child{border-bottom:0}
+.s-date{display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.s-date b{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.s-date span{font-family:var(--display);font-size:28px;font-weight:700}
+.sess.today .s-date span,.sess.today .s-date b{color:var(--accent)}
+.sess.rest{padding:8px 0}
+.sess.rest .s-date span{font-size:20px;color:var(--muted)}
+.s-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.s-main b{font-size:17px}
+.s-main span{font-size:14px;color:var(--muted)}
+.s-act{grid-column:2;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.wkcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:4px 16px}
+details.fut{border-bottom:1px solid var(--line)}
+details.fut summary{padding:12px 0;cursor:pointer;display:flex;justify-content:space-between;gap:10px;list-style:none}
+details.fut summary::-webkit-details-marker{display:none}
+details.fut summary span{color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+details.fut ul{margin:0 0 12px;padding-left:18px;color:var(--muted);font-size:15px}
+.log{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.log li{font-size:14px;padding-left:12px;border-left:3px solid var(--line)}
+.log li span{color:var(--muted);font-size:12px;display:block}
+.rpe{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.rpe-b{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px 2px;border-radius:12px;border:1px solid var(--line);background:var(--bg);cursor:pointer}
+.rpe-b b{font-family:var(--display);font-size:28px;line-height:1}
+.rpe-b span{font-size:11.5px;color:var(--muted);text-align:center;line-height:1.15}
+.note-box{font-size:14px;padding:10px 12px;border-radius:10px;background:var(--slow-soft)}
+
 /* ---- Barra de pestañas ---- */
 .tabbar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding:0 max(8px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(8px,env(safe-area-inset-left,0px));z-index:5}
 .tabbar button{flex:1;max-width:186px;background:none;border:0;padding:14px 4px 16px;font-weight:600;color:var(--muted);cursor:pointer;font-size:15px}
@@ -189,6 +236,7 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--mute
 <div id="app"></div>
 <nav class="tabbar" id="tabbar">
   <button data-view="home">Entrenar</button>
+  <button data-view="plan">Plan</button>
   <button data-view="history">Historial</button>
   <button data-view="settings">Ajustes</button>
 </nav>
@@ -230,12 +278,18 @@ const DEFAULT_ROUTINES=[
   {id:'r-10k',name:'Ritmo San Silvestre',note:'5 km clavando el ritmo objetivo del 10K.',steps:[B('Calentamiento','time',600,'suave'),B('Ritmo carrera','dist',5000,'carrera'),B('Vuelta a la calma','time',300,'suave')]},
   {id:'r-larga',name:'Tirada larga 8 km',note:'Volumen. Lento a propósito: aquí el objetivo es no pasarte de rápido.',steps:[B('Tirada larga','dist',8000,'suave')]}
 ];
-const DEFAULT_SETTINGS={tol:3,grace:6,repeat:8,vol:0.7,voiceBlocks:true,voiceKm:true,alertVoice:false,sim:false,simSpeed:10};
+const DEFAULT_SETTINGS={tol:3,grace:6,repeat:8,vol:0.7,voiceBlocks:true,voiceKm:true,alertVoice:false,sim:false,simSpeed:10,p5:347,autoZones:true};
+// Todos los rangos salen del ritmo de 5K de referencia (desplazamientos en s/km)
+const OFFS={suave:[63,103],carrera:[13,28],umbral:[8,23],series:[-22,-7]};
+function deriveZones(p5){const z=clone(DEFAULT_ZONES);for(const k in OFFS){z[k].min=p5+OFFS[k][0];z[k].max=p5+OFFS[k][1]}return z}
 
 let zones=Object.assign(clone(DEFAULT_ZONES),store.get('zones',{}));
 let routines=store.get('routines',null)||clone(DEFAULT_ROUTINES);
 let history=store.get('history',[]);
 let settings=Object.assign({},DEFAULT_SETTINGS,store.get('settings',{}));
+if(settings.autoZones)zones=deriveZones(settings.p5);
+let plan=store.get('plan',null);
+const savePlan=()=>store.set('plan',plan);
 const LIBRE={name:'Libre',min:null,max:null};
 const zoneOf=k=>k==='libre'?LIBRE:(zones[k]||LIBRE);
 
@@ -286,9 +340,9 @@ function wakeOff(){try{wl&&wl.release()}catch(e){}wl=null}
 document.addEventListener('visibilitychange',()=>{if(run&&document.visibilityState==='visible')wakeOn()});
 window.addEventListener('beforeunload',e=>{if(run&&run.phase==='running'){e.preventDefault();e.returnValue=''}});
 
-function startRun(routine){
+function startRun(routine,planRef){
   audioInit();
-  run={routine:{id:routine.id,name:routine.name},blocks:flatten(routine.steps),phase:'ready',bi:0,elapsed:0,dist:0,
+  run={routine:{id:routine.id,name:routine.name},planRef:planRef||null,blocks:flatten(routine.steps),phase:'ready',bi:0,elapsed:0,dist:0,
     points:[],last:null,rejects:0,pace:null,acc:null,lastFixT:0,gpsError:null,state:'none',settling:false,
     outDir:null,outSince:null,lastAlert:0,alerted:false,inMs:0,rangeMs:0,bInMs:0,bRangeMs:0,
     samples:[],lastSampleE:-1e9,splits:[],lastSplitE:0,blockStart:{e:0,d:0},blockStats:[],countSaid:{},said100:false,
@@ -439,6 +493,11 @@ function finishRun(closeCurrent){
   const used={};for(const b of run.blocks){const z=zoneOf(b.zone);if(z.min!=null)used[b.zone]=[z.min,z.max]}
   const rec={id:uid(),date:run.startedAt,name:run.routine.name,ms:Math.round(run.elapsed),m:Math.round(run.dist),
     inPct:run.rangeMs>5000?Math.round(100*run.inMs/run.rangeMs):null,splits:run.splits,blocks:run.blockStats,samples:run.samples,z:used,sim:settings.sim};
+  // Cuánto del entrenamiento previsto se ha hecho (0–1)
+  rec.completion=run.blocks.reduce((a,b,i)=>{const s=run.blockStats[i];if(!s)return a;
+    return a+(b.kind==='time'?Math.min(1,s.ms/(b.value*1000)):b.kind==='dist'?Math.min(1,s.m/b.value):1)},0)/run.blocks.length;
+  if(run.planRef&&plan){rec.plan=run.planRef;const w=plan.weeks[run.planRef.w],s=w&&w.sessions.find(x=>x.id===run.planRef.s);
+    if(s&&rec.ms>=30000){s.rec=rec.id;s.done=rec.completion>=0.8;s.completion=rec.completion;savePlan()}}
   cue('block');
   if(settings.voiceBlocks)speak(`Entrenamiento terminado. ${fmtKm(rec.m)} kilómetros${rec.inPct!=null?`, ${rec.inPct} por ciento del tiempo en ritmo`:''}.`);
   run=null;
@@ -461,6 +520,7 @@ function render(extra){
   if(view==='home')app.innerHTML=viewHome();
   else if(view==='history')app.innerHTML=viewHistory();
   else if(view==='settings')app.innerHTML=viewSettings();
+  else if(view==='plan')app.innerHTML=viewPlan();
   else if(view==='editor')app.innerHTML=viewEditor();
   else if(view==='detail'){const rec=extra||history.find(h=>h.id===viewArg);app.innerHTML=rec?viewDetail(rec):viewHistory()}
   else if(view==='run'){app.innerHTML=viewRun();run.ctrlKey='';updateRun()}
@@ -473,6 +533,7 @@ function viewHome(){
     <p class="r-meta tab">≈ ${Math.round(e.t/60)} min · ≈ ${fmtKm(e.d,1)} km</p></div>
     <div class="r-actions"><button class="btn primary" data-start="${r.id}">Empezar</button><button class="btn sm" data-edit="${r.id}">Editar</button></div></article>`}).join('');
   return `<header class="top"><h1>Lie<em>bre</em></h1><p class="sub">Te avisa con sonidos cuando te sales del ritmo, para que no tengas que mirar el móvil.</p></header>
+  ${todayCard()}
   ${settings.sim?`<p class="small"><span class="pill mid">Modo prueba activo</span> El GPS es simulado. Desactívalo en Ajustes antes de salir a correr.</p>`:''}
   <section><h2>Carrera libre</h2><p class="hint">Elige un ritmo y sal sin bloques. Termina cuando quieras.</p><div class="chips">${chips}</div></section>
   <section><div class="sec-head"><h2>Rutinas</h2><button class="btn sm" data-act="new">+ Nueva rutina</button></div><div class="list">${cards||'<p class="empty">No tienes rutinas. Crea una con «Nueva rutina».</p>'}</div></section>`;
@@ -562,6 +623,8 @@ function viewDetail(rec){
   const splits=rec.splits.length?rec.splits.map((s,i)=>`<tr><td>Km ${i+1}</td><td>${fmtPace(s/1000)}</td></tr>`).join(''):'';
   return `<button class="btn sm back" data-act="history">← Historial</button>
   <header><div class="eyebrow">${dt.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})} · ${dt.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}${rec.sim?' · simulado':''}</div><h1 style="font-size:38px;margin-top:4px">${esc(rec.name)}</h1></header>
+  ${rec.rpe==null&&history.includes(rec)?`<section class="card"><div><h2>¿Cómo te ha resultado?</h2><p class="small">${rec.plan?'Con esto el plan decide si subir, mantener o bajar la carga.':'Así podrás comparar sensaciones entre entrenamientos.'}</p></div><div class="rpe">${[1,2,3,4,5].map(n=>`<button class="rpe-b" data-rpe="${n}" data-rec="${rec.id}"><b>${n}</b><span>${RPE[n]}</span></button>`).join('')}</div></section>`:''}
+  ${rec.plan||rec.rpe?`<p class="small">${rec.plan?`Sesión del plan · completada al ${Math.round((rec.completion||0)*100)}%`:''}${rec.plan&&rec.rpe?' · ':''}${rec.rpe?`Esfuerzo: ${RPE[rec.rpe].toLowerCase()}`:''}</p>`:''}
   <div class="stats">
     <div class="stat"><span class="eyebrow">Distancia</span><b>${fmtKm(rec.m)} km</b></div>
     <div class="stat"><span class="eyebrow">Tiempo</span><b>${fmtDur(rec.ms)}</b></div>
@@ -582,11 +645,14 @@ function viewHistory(){
 }
 
 function viewSettings(){
-  const zr=Object.entries(zones).map(([k,z])=>`<div class="zrow"><span class="lbl">${esc(z.name)}</span><input class="in num" id="z-${k}-min" data-zone="${k}" data-end="min" value="${fmtPace(z.min)}" inputmode="decimal" aria-label="${esc(z.name)}: ritmo más rápido"><span class="dash">–</span><input class="in num" id="z-${k}-max" data-zone="${k}" data-end="max" value="${fmtPace(z.max)}" inputmode="decimal" aria-label="${esc(z.name)}: ritmo más lento"></div>`).join('');
+  const zr=Object.entries(zones).map(([k,z])=>`<div class="zrow"><span class="lbl">${esc(z.name)}</span><input class="in num" id="z-${k}-min" data-zone="${k}" data-end="min" value="${fmtPace(z.min)}" ${settings.autoZones?'disabled':''} inputmode="decimal" aria-label="${esc(z.name)}: ritmo más rápido"><span class="dash">–</span><input class="in num" id="z-${k}-max" data-zone="${k}" data-end="max" value="${fmtPace(z.max)}" ${settings.autoZones?'disabled':''} inputmode="decimal" aria-label="${esc(z.name)}: ritmo más lento"></div>`).join('');
   const sl=(id,label,min,max,step,unit)=>`<div class="slider"><label for="s-${id}" class="lbl">${label}</label><output id="o-${id}">${settings[id]}${unit}</output><input type="range" id="s-${id}" data-set="${id}" data-unit="${unit}" min="${min}" max="${max}" step="${step}" value="${settings[id]}"></div>`;
   const tg=(id,label,help)=>`<label class="toggle" for="t-${id}"><span><span class="lbl">${label}</span>${help?`<br><span class="small">${help}</span>`:''}</span><input type="checkbox" id="t-${id}" data-tog="${id}" ${settings[id]?'checked':''}></label>`;
   return `<header class="top"><h1>Ajustes</h1></header>
-  <section class="card"><div><h2>Mis ritmos</h2><p class="small">En min/km, del más rápido al más lento. Todas las rutinas usan estos rangos, así que si mejoras solo tienes que cambiarlos aquí.</p></div>${zr}</section>
+  <section class="card"><div><h2>Mis ritmos</h2><p class="small">En min/km, del más rápido al más lento. Todas las rutinas y el plan usan estos rangos.</p></div>
+    <div class="zrow"><label class="lbl" for="s-p5">Referencia 5K</label><input class="in num" id="s-p5" data-p5="1" value="${fmtPace(settings.p5)}" inputmode="decimal"><span></span><span></span></div>
+    ${tg('autoZones','Calcular rangos desde la referencia','El plan corrige la referencia tras las series, el umbral y el test. Desactívalo para escribir los rangos a mano.')}
+    ${zr}</section>
   <section class="card"><h2>Avisos</h2>
     ${sl('tol','Margen de tolerancia',0,10,1,' s')}
     <p class="small">Segundos por km que puedes salirte del rango sin que suene nada.</p>
@@ -646,11 +712,210 @@ function readAmount(path){
   const e=estimate(draft.steps);const sub=$('.top .sub');if(sub)sub.textContent=`≈ ${Math.round(e.t/60)} min · ≈ ${fmtKm(e.d,1)} km`;
 }
 
+/* ============ plan semanal adaptativo ============ */
+const DAY=864e5,WD=['L','M','X','J','V','S','D'],WDL=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+const dkey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseKey=k=>{const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const mondayOf=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());return addDays(x,-((x.getDay()+6)%7))};
+const todayKey=()=>dkey(new Date());
+const wdOf=k=>(parseKey(k).getDay()+6)%7;
+const daysBetween=(a,b)=>Math.round((b-a)/DAY);
+const shortDate=d=>d.toLocaleDateString('es-ES',{day:'numeric',month:'short'}).replace('.','');
+const RPE=['','Muy fácil','Fácil','Exigente','Duro','Al límite'];
+const KIND={build:'Construcción',test:'Descarga y test',deload:'Descarga',taper:'Afinado',race:'Semana de carrera'};
+const QUALITY=new Set(['series','umbral','carrera']);
+
+function nWeeks(){return Math.floor(daysBetween(parseKey(plan.start),mondayOf(parseKey(plan.raceDate)))/7)+1}
+function curIdx(){return Math.floor(daysBetween(parseKey(plan.start),mondayOf(new Date()))/7)}
+function weekKind(i,N){if(i===N-1)return 'race';if(i===N-2&&N>=4)return 'taper';if(i%4===3&&i<N-2)return i===3?'test':'deload';return 'build'}
+
+// Progresión por nivel: cada semana superada sube un escalón
+const SER=[[6,400,90],[8,400,90],[5,600,120],[6,600,120],[5,800,120],[6,800,120],[7,800,120]];
+const UMB=[[3,360,120],[3,480,120],[3,600,120],[2,900,180],[3,720,150],[2,1200,180]];
+const PACE=[2000,3000,4000,5000,6000,7000];
+const EASY=[25,30,35,40,40,45];
+const LONG=[6,7,8,9,10,11,12];
+const at=(a,L)=>a[Math.max(0,Math.min(L,a.length-1))];
+const WU=()=>B('Calentamiento','time',600,'suave'),CD=(s=480)=>B('Vuelta a la calma','time',s,'suave');
+const SESSION={
+  series:L=>{const[n,m,r]=at(SER,L);return{title:`Series ${n}×${m} m`,note:'Velocidad. Recupera trotando muy suave o andando.',steps:[WU(),R(n,[B('Serie','dist',m,'series'),B('Recuperación','time',r,'libre')]),CD()]}},
+  umbral:L=>{const[n,s,r]=at(UMB,L);return{title:`Umbral ${n}×${s/60} min`,note:'Exigente pero controlado: frases cortas, no conversación.',steps:[WU(),R(n,[B('Umbral','time',s,'umbral'),B('Recuperación','time',r,'suave')]),CD()]}},
+  pace:L=>{const d=at(PACE,L);return{title:`Ritmo carrera ${d/1000} km`,note:'Clavar el ritmo objetivo del día de la carrera.',steps:[WU(),B('Ritmo carrera','dist',d,'carrera'),CD(300)]}},
+  easy:L=>{const m=at(EASY,L);return{title:`Rodaje ${m} min`,note:'Suave de verdad: tienes que poder hablar.',steps:[B('Rodaje','time',m*60,'suave')]}},
+  long:(L,kind)=>{let km=at(LONG,L);if(kind!=='build')km=Math.max(5,Math.round(km*0.75));return{title:`Tirada larga ${km} km`,note:'Volumen. Lento a propósito.',steps:[B('Tirada larga','dist',km*1000,'suave')]}},
+  test:()=>({title:'Test 5 km',note:'A tope pero regular desde el principio. El resultado recalcula todos tus ritmos.',steps:[WU(),B('Test 5 km','dist',5000,'libre'),CD(300)]}),
+  easyShort:()=>({title:'Rodaje 25 min',note:'Soltar piernas. Nada de apretar esta semana.',steps:[B('Rodaje','time',1500,'suave')]}),
+  activation:()=>({title:'Activación',note:'Recordar el ritmo de carrera sin cansarte.',steps:[B('Rodaje','time',900,'suave'),B('Ritmo carrera','dist',2000,'carrera'),CD(300)]}),
+  race:()=>({title:plan.goalName,note:'Sal a ritmo, no más rápido. Los primeros km con gente engañan.',steps:[B('Carrera','dist',10000,'carrera')]})
+};
+
+function genWeek(i,level){
+  const N=nWeeks(),kind=weekKind(i,N),start=addDays(parseKey(plan.start),7*i);
+  const L=kind==='build'?level:Math.max(0,level-1);
+  const days=[...plan.days].sort((a,b)=>a-b),longDay=days.includes(plan.longDay)?plan.longDay:days[days.length-1];
+  const mk=(wd,type)=>{const s=type==='long'?SESSION.long(L,kind):SESSION[type](L);return{id:uid(),date:dkey(addDays(start,wd)),type,...s,done:false}};
+  const sessions=[];
+  if(kind==='race'){
+    const raceWd=wdOf(plan.raceDate),before=days.filter(d=>d<raceWd&&d!==raceWd-1).slice(-2);
+    before.forEach((d,j)=>sessions.push(mk(d,j===before.length-1&&before.length===2?'activation':'easyShort')));
+    sessions.push({id:uid(),date:plan.raceDate,type:'race',...SESSION.race(),done:false});
+  }else{
+    const others=days.filter(d=>d!==longDay);
+    const Q=kind==='test'?'test':(i%2===0?'series':'umbral');
+    const E2=(i>=2&&i%2===1&&kind==='build')?'pace':'easy';
+    const tmpl=[[],[Q],[Q,E2],[Q,'easy','pace'],[Q,'easy','pace','easy']][Math.min(4,others.length)];
+    others.slice(0,tmpl.length).forEach((d,j)=>sessions.push(mk(d,tmpl[j])));
+    sessions.push(mk(longDay,'long'));
+    sessions.sort((a,b)=>a.date<b.date?-1:1);
+  }
+  return{i,start:dkey(start),kind,level:L,sessions};
+}
+function evaluateWeek(i){
+  const w=plan.weeks[i];if(!w||w.evaluated)return;w.evaluated=true;
+  const ss=w.sessions.filter(s=>s.type!=='race');if(!ss.length)return;
+  const done=ss.filter(s=>s.done),rp=done.map(s=>s.rpe).filter(Boolean);
+  const ratio=done.length/ss.length,rpe=rp.length?rp.reduce((a,b)=>a+b,0)/rp.length:3;
+  let delta=0,why;
+  if(w.kind!=='build')why='era semana de descarga, mantenemos el nivel';
+  else if(ratio>=0.66&&rpe<=3.6){delta=1;why='subimos un escalón'}
+  else if(ratio<0.5||rpe>=4.5){delta=plan.level>0?-1:0;why=delta?'bajamos un escalón para que asimiles':'mantenemos el nivel inicial'}
+  else why='repetimos nivel para consolidar';
+  plan.level=Math.max(0,plan.level+delta);
+  w.evalNote=`Semana ${i+1}: ${done.length} de ${ss.length} sesiones hechas${rp.length?`, esfuerzo medio ${rpe.toFixed(1).replace('.',',')}`:''}. Por eso ${why}.`;
+  plan.log.unshift({date:todayKey(),text:w.evalNote});
+}
+function syncPlan(){
+  if(!plan)return;const N=nWeeks(),ci=Math.min(Math.max(curIdx(),0),N-1);
+  let changed=false;
+  while(plan.weeks.length<=ci){const i=plan.weeks.length;if(i>0)evaluateWeek(i-1);plan.weeks.push(genWeek(i,plan.level));changed=true}
+  if(curIdx()>=N&&plan.weeks[N-1]&&!plan.weeks[N-1].evaluated){plan.weeks[N-1].evaluated=true;changed=true}
+  if(changed)savePlan();
+}
+function previewWeek(i){const N=nWeeks();let lv=plan.level;for(let j=plan.weeks.length-1;j<i;j++)if(j>=0&&weekKind(j,N)==='build')lv++;return genWeek(i,lv)}
+function weekAt(i){return plan.weeks[i]||previewWeek(i)}
+function sessStatus(s){const t=todayKey();return s.done?'done':s.date<t?'missed':s.date===t?'today':'future'}
+const weekKm=w=>w.sessions.reduce((a,s)=>a+estimate(s.steps).d,0);
+
+// Tras valorar el esfuerzo: marcar la sesión y corregir el ritmo de referencia
+function applyRpe(rec,rpe){
+  rec.rpe=rpe;store.set('history',history);
+  if(!rec.plan||!plan)return;
+  const w=plan.weeks[rec.plan.w],s=w&&w.sessions.find(x=>x.id===rec.plan.s);if(!s)return;
+  s.rpe=rpe;const old=settings.p5;let msg=null;
+  if(s.type==='test'){
+    const tb=rec.blocks.find(b=>b.label==='Test 5 km');
+    if(tb&&tb.m>=4750){const np=Math.round(tb.ms/tb.m);settings.p5=Math.max(old-30,Math.min(old+30,np));
+      msg=`Test 5 km a ${fmtPace(np)}/km. Ritmo de referencia ${fmtPace(old)} → ${fmtPace(settings.p5)}.`}
+  }else if(['series','umbral','pace','activation','race'].includes(s.type)){
+    const work=rec.blocks.filter(b=>QUALITY.has(b.zone)&&b.m>50);
+    const ms=work.reduce((a,b)=>a+b.ms,0),m=work.reduce((a,b)=>a+b.m,0);
+    const zr=work.length&&rec.z[work[0].zone];
+    if(m>300&&zr){
+      const avg=ms/m,mid=(zr[0]+zr[1])/2;
+      const wIn=work.filter(b=>b.inPct!=null),inP=wIn.length?wIn.reduce((a,b)=>a+b.inPct*b.ms,0)/wIn.reduce((a,b)=>a+b.ms,0):0;
+      if(rec.completion>=0.9&&inP>=65&&rpe<=3&&avg<=mid){settings.p5=old-3;msg=`${s.title}: completa, ${Math.round(inP)}% en rango y esfuerzo ${RPE[rpe].toLowerCase()}. Ritmos 3 s/km más rápidos.`}
+      else if(rec.completion<0.75||rpe>=5||avg>zr[1]+5){settings.p5=old+3;msg=`${s.title}: ${rec.completion<0.75?'incompleta':rpe>=5?'al límite':'por debajo del rango'}. Ritmos 3 s/km más lentos.`}
+    }
+  }
+  if(settings.p5!==old){store.set('settings',settings);if(settings.autoZones){zones=deriveZones(settings.p5);store.set('zones',zones)}}
+  if(msg)plan.log.unshift({date:todayKey(),text:msg});
+  savePlan();toast(msg?'Plan ajustado':'Esfuerzo guardado');
+}
+
+let planDraft=null,delPlanArm=false;
+function newDraft(){return plan?{goalName:plan.goalName,raceDate:plan.raceDate,days:[...plan.days],longDay:plan.longDay,p5:settings.p5}:{goalName:'San Silvestre Vallecana',raceDate:'2026-12-31',days:[1,3,6],longDay:6,p5:settings.p5}}
+function viewPlanSetup(){
+  const d=planDraft||(planDraft=newDraft());
+  return `<header class="top"><h1>${plan?'Cambiar plan':'Tu plan'}</h1><p class="sub">Un calendario semana a semana hasta tu carrera. Cada semana se ajusta a lo que completes y a cómo te sienten las sesiones.</p></header>
+  <section class="card">
+    <div class="field"><label for="pd-name">Objetivo</label><input class="in" id="pd-name" data-pd="goalName" value="${esc(d.goalName)}"></div>
+    <div class="field"><label for="pd-date">Fecha de la carrera</label><input class="in" type="date" id="pd-date" data-pd="raceDate" value="${esc(d.raceDate)}"></div>
+    <div class="field"><span class="lbl">Días que puedes correr</span><div class="days">${WD.map((l,i)=>`<button class="daychip" data-day="${i}" aria-pressed="${d.days.includes(i)}" aria-label="${WDL[i]}">${l}</button>`).join('')}</div><p class="small">Entre 2 y 5. Mejor que no sean seguidos.</p></div>
+    <div class="field"><label for="pd-long">Día de la tirada larga</label><select class="in" id="pd-long" data-pd="longDay">${[...d.days].sort((a,b)=>a-b).map(i=>`<option value="${i}" ${i===d.longDay?'selected':''}>${WDL[i]}</option>`).join('')}</select></div>
+    <div class="field"><label for="pd-p5">Tu ritmo actual en 5 km (min/km)</label><input class="in num" id="pd-p5" data-pd="p5" value="${typeof d.p5==='number'?fmtPace(d.p5):esc(d.p5)}" inputmode="decimal" style="max-width:120px"><p class="small">De aquí salen todos tus rangos. El plan lo irá corrigiendo con lo que hagas.</p></div>
+  </section>
+  <div class="row"><button class="btn primary" style="flex:1" data-act="save-plan">${plan?'Guardar cambios':'Crear plan'}</button>${plan?'<button class="btn" data-act="cancel-plan">Cancelar</button>':''}</div>`;
+}
+function sessRow(s,wi,canStart){
+  const d=parseKey(s.date),st=sessStatus(s),e=estimate(s.steps);
+  return `<div class="sess ${st}"><div class="s-date"><b>${WDL[wdOf(s.date)]}</b><span>${d.getDate()}</span></div>
+    <div class="s-main"><b>${esc(s.title)}</b><span>${esc(stepsSummary(s.steps))}</span><span class="tab">≈ ${Math.round(e.t/60)} min · ≈ ${fmtKm(e.d,1)} km</span></div>
+    <div class="s-act">${st==='done'?`<button class="btn sm" data-open="${s.rec}">Hecho · ${s.rpe?RPE[s.rpe].toLowerCase():'ver'}</button>`:st==='missed'?'<span class="pill bad">No hecho</span>':''}
+    ${canStart&&st!=='done'?`<button class="btn sm ${st==='today'?'primary':''}" data-psess="${wi}:${s.id}">${s.rec?'Repetir':'Empezar'}</button>`:''}</div></div>`;
+}
+function calGrid(N,ci){
+  const t=todayKey();let h='<div class="cal"><span></span>'+WD.map(l=>`<span class="h">${l}</span>`).join('');
+  for(let i=0;i<N;i++){const w=weekAt(i),st=parseKey(w.start);h+=`<span class="wk ${i===ci?'cur':''}">S${i+1}</span>`;
+    for(let d=0;d<7;d++){const k=dkey(addDays(st,d)),s=w.sessions.find(x=>x.date===k);
+      const c=!s?'':s.type==='race'?'race':s.done?'done':k<t?'missed':'plan';
+      h+=`<span class="cell ${c} ${k===t?'now':''}" title="${s?esc(s.title):''}">${addDays(st,d).getDate()}</span>`}}
+  return h+`</div><div class="legend2"><span><i style="background:var(--in)"></i>Hecho</span><span><i style="border:1.5px solid var(--muted)"></i>Previsto</span><span><i style="background:var(--fast-soft);border:1.5px solid var(--fast)"></i>No hecho</span><span><i style="background:var(--accent)"></i>Carrera</span></div>`;
+}
+function viewPlan(){
+  if(!plan||planDraft)return viewPlanSetup();
+  syncPlan();
+  const N=nWeeks(),raw=curIdx(),ci=Math.min(Math.max(raw,0),N-1),t=todayKey(),w=plan.weeks[ci];
+  const left=daysBetween(parseKey(t),parseKey(plan.raceDate));
+  const sub=raw<0?`Empieza el lunes ${shortDate(parseKey(plan.start))} · ${N} semanas`:left>0?`Faltan ${left} días · semana ${ci+1} de ${N}`:left===0?'Hoy es el día':'Carrera hecha. Crea un plan nuevo cuando quieras.';
+  const z=k=>`${zones[k].name} <b>${fmtPace(zones[k].min)}–${fmtPace(zones[k].max)}</b>`;
+  const rows=[];const st=parseKey(w.start);
+  for(let d=0;d<7;d++){const k=dkey(addDays(st,d)),s=w.sessions.find(x=>x.date===k);
+    rows.push(s?sessRow(s,ci,true):`<div class="sess rest"><div class="s-date"><b>${WDL[d]}</b><span>${addDays(st,d).getDate()}</span></div><div class="s-main"><span>Descanso</span></div></div>`)}
+  const prev=plan.weeks[ci-1];
+  const fut=[];for(let i=ci+1;i<N;i++){const fw=weekAt(i),s0=parseKey(fw.start);
+    fut.push(`<details class="fut"><summary><b>Semana ${i+1} · ${KIND[fw.kind]}</b><span>${shortDate(s0)} · ≈ ${fmtKm(weekKm(fw),0)} km</span></summary><ul>${fw.sessions.map(s=>`<li>${WDL[wdOf(s.date)]} ${parseKey(s.date).getDate()}: ${esc(s.title)}</li>`).join('')}</ul></details>`)}
+  return `<header class="top"><h1>${esc(plan.goalName)}</h1><p class="sub tab">${sub}</p></header>
+  <section class="card"><div class="sec-head" style="margin:0"><h2>Tus ritmos</h2><span class="pill">5K ${fmtPace(settings.p5)}</span></div>
+    <div class="refline">${['suave','carrera','umbral','series'].map(z).join('<span>·</span>')}</div>
+    <p class="small">${settings.autoZones?'Se recalculan solos tras las sesiones de calidad y el test.':'Ajuste automático desactivado en Ajustes.'}</p></section>
+  <section><h2 style="margin-bottom:12px">Calendario</h2>${calGrid(N,raw>=0?ci:-1)}</section>
+  <section><div class="sec-head"><h2>Semana ${ci+1} · ${KIND[w.kind]}</h2></div>
+    ${prev&&prev.evalNote?`<p class="note-box">${esc(prev.evalNote)}</p>`:''}
+    <div class="wkcard">${rows.join('')}</div></section>
+  ${fut.length?`<section><h2>Próximas semanas</h2><p class="hint">Provisional: cambia según cómo te vayan las anteriores.</p>${fut.join('')}</section>`:''}
+  ${plan.log.length?`<section><h2 style="margin-bottom:12px">Ajustes del plan</h2><ul class="log">${plan.log.slice(0,8).map(l=>`<li><span>${shortDate(parseKey(l.date))}</span>${esc(l.text)}</li>`).join('')}</ul></section>`:''}
+  <div class="row"><button class="btn sm" data-act="edit-plan">Cambiar días o fecha</button><button class="btn sm danger" data-act="del-plan">${delPlanArm?'Toca otra vez para borrar':'Borrar plan'}</button></div>`;
+}
+function todayCard(){
+  if(!plan)return `<section class="today"><h3>Plan hasta tu carrera</h3><p class="small">Dime qué días puedes correr y te preparo cada semana, ajustada a cómo vayas.</p><button class="btn primary" data-view="plan">Crear plan</button></section>`;
+  syncPlan();const t=todayKey(),N=nWeeks(),ci=Math.min(Math.max(curIdx(),0),N-1),w=plan.weeks[ci];
+  const s=w.sessions.find(x=>x.date===t);
+  if(s){const e=estimate(s.steps);return `<section class="today"><span class="eyebrow">Hoy toca</span><h3>${esc(s.title)}</h3><p class="small">${esc(s.note)} ≈ ${Math.round(e.t/60)} min.</p>
+    ${s.done?`<button class="btn" data-open="${s.rec}">Hecho · ver resultado</button>`:`<button class="btn primary" data-psess="${ci}:${s.id}">Empezar</button>`}</section>`}
+  let nx=null;for(let i=ci;i<N&&!nx;i++)nx=weekAt(i).sessions.find(x=>x.date>t);
+  return `<section class="today"><span class="eyebrow">Hoy descansas</span>${nx?`<p style="margin:0">Próxima sesión: <b>${WDL[wdOf(nx.date)]} ${parseKey(nx.date).getDate()}</b> · ${esc(nx.title)}</p>`:''}<button class="btn sm" data-view="plan" style="align-self:flex-start">Ver plan</button></section>`;
+}
+
+function savePlanDraft(){
+  const d=planDraft,p5=typeof d.p5==='number'?d.p5:parsePace(d.p5);
+  if(p5==null||p5<200||p5>600){toast('Escribe tu ritmo de 5 km como 5:47');return}
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d.raceDate)||daysBetween(parseKey(todayKey()),parseKey(d.raceDate))<7){toast('La carrera tiene que ser dentro de al menos una semana');return}
+  const days=[...d.days].sort((a,b)=>a-b),longDay=days.includes(+d.longDay)?+d.longDay:days[days.length-1];
+  if(p5!==settings.p5){settings.p5=p5;store.set('settings',settings);if(settings.autoZones){zones=deriveZones(p5);store.set('zones',zones)}}
+  if(!plan){
+    plan={goalName:d.goalName.trim()||'Mi carrera',raceDate:d.raceDate,start:dkey(mondayOf(addDays(new Date(),1))),days,longDay,level:0,weeks:[],
+      log:[{date:todayKey(),text:`Plan creado con ritmo de referencia ${fmtPace(p5)}/km en 5 km.`}]};
+  }else{
+    const ci=Math.max(0,curIdx()),old=plan.weeks[ci];
+    Object.assign(plan,{goalName:d.goalName.trim()||plan.goalName,raceDate:d.raceDate,days,longDay});
+    plan.weeks=plan.weeks.slice(0,ci);syncPlan();
+    const nw=plan.weeks[ci];if(old&&nw)for(const s of old.sessions)if(s.rec){const m=nw.sessions.find(x=>x.date===s.date);if(m)Object.assign(m,{done:s.done,rec:s.rec,rpe:s.rpe,completion:s.completion});else nw.sessions.push(s)}
+    if(nw)nw.sessions.sort((a,b)=>a.date<b.date?-1:1);
+    plan.log.unshift({date:todayKey(),text:`Plan modificado: ${days.map(x=>WDL[x]).join(', ')}, tirada larga el ${WDL[longDay].toLowerCase()}.`});
+  }
+  syncPlan();savePlan();planDraft=null;setView('plan');toast('Plan listo');
+}
+
 /* ============ eventos ============ */
 document.addEventListener('click',e=>{
   const t=e.target.closest('button');if(!t)return;
   const ds=t.dataset;
-  if(ds.view){delArm=null;resetArm=false;setView(ds.view);return}
+  if(ds.view){delArm=null;resetArm=false;delPlanArm=false;if(ds.view!=='plan')planDraft=null;setView(ds.view);return}
+  if(ds.psess){const[wi,sid]=ds.psess.split(':');const s=plan.weeks[+wi].sessions.find(x=>x.id===sid);if(s)startRun({id:'plan-'+s.id,name:s.title,steps:s.steps},{w:+wi,s:s.id});return}
+  if(ds.rpe){const rec=history.find(h=>h.id===ds.rec);if(rec){applyRpe(rec,+ds.rpe);render()}return}
+  if(ds.day!=null){const d=+ds.day,arr=planDraft.days;const i=arr.indexOf(d);if(i>=0){if(arr.length<=2){toast('Mínimo 2 días');return}arr.splice(i,1)}else{if(arr.length>=5){toast('Máximo 5 días');return}arr.push(d)}
+    if(!arr.includes(planDraft.longDay))planDraft.longDay=[...arr].sort((a,b)=>a-b).pop();const y=window.scrollY;render();window.scrollTo(0,y);return}
   if(ds.quick){const z=zones[ds.quick];startRun({id:'libre-'+ds.quick,name:'Carrera libre · '+z.name,steps:[B(z.name,'open',0,ds.quick)]});return}
   if(ds.start){const r=routines.find(x=>x.id===ds.start);if(r)startRun(r);return}
   if(ds.edit){const r=routines.find(x=>x.id===ds.edit);draft=clone(r);delRoutineArm=false;setView('editor');return}
@@ -670,6 +935,10 @@ document.addEventListener('click',e=>{
   if(ds.addin!=null){draft.steps[+ds.addin].blocks.push(B('Bloque','time',60,'suave'));rerenderEditor();return}
   switch(ds.act){
     case 'history':delArm=null;setView('history');break;
+    case 'edit-plan':planDraft=newDraft();setView('plan');break;
+    case 'cancel-plan':planDraft=null;setView('plan');break;
+    case 'del-plan':if(delPlanArm){plan=null;store.set('plan',null);delPlanArm=false;planDraft=null;toast('Plan borrado')}else delPlanArm=true;render();break;
+    case 'save-plan':savePlanDraft();break;
     case 'new':draft={id:'r-'+uid(),name:'Mi rutina',note:'',isNew:true,steps:[B('Calentamiento','time',600,'suave')]};setView('editor');break;
     case 'add-block':draft.steps.push(B('Bloque','time',600,'suave'));rerenderEditor();break;
     case 'add-repeat':draft.steps.push(R(4,[B('Serie','dist',400,'series'),B('Recuperación','time',90,'libre')]));rerenderEditor();break;
@@ -689,12 +958,16 @@ document.addEventListener('input',e=>{
   const t=e.target;
   if(t.dataset.set){const id=t.dataset.set;settings[id]=parseFloat(t.value);store.set('settings',settings);const o=$('#o-'+id);if(o)o.textContent=id==='vol'?Math.round(settings.vol*100)+'%':settings[id]+t.dataset.unit;return}
   if(t.dataset.meta&&draft){draft[t.dataset.meta]=t.value;return}
+  if(t.dataset.pd&&planDraft&&t.tagName==='INPUT'){planDraft[t.dataset.pd]=t.value;return}
   if(t.dataset.f==='label'&&draft){stepAt(t.closest('.ed-block').dataset.path).label=t.value;return}
   if(t.dataset.f==='amount'&&draft){readAmount(t.closest('.ed-block').dataset.path);return}
 });
 document.addEventListener('change',e=>{
   const t=e.target;
-  if(t.dataset.tog){settings[t.dataset.tog]=t.checked;store.set('settings',settings);return}
+  if(t.dataset.tog){settings[t.dataset.tog]=t.checked;store.set('settings',settings);if(t.dataset.tog==='autoZones'){if(t.checked){zones=deriveZones(settings.p5);store.set('zones',zones)}render()}return}
+  if(t.dataset.p5){const v=parsePace(t.value);if(v==null||v<200||v>600){t.classList.add('bad');toast('Escribe el ritmo como 5:47');return}
+    t.classList.remove('bad');settings.p5=v;store.set('settings',settings);if(settings.autoZones){zones=deriveZones(v);store.set('zones',zones)}if(plan){plan.log.unshift({date:todayKey(),text:`Referencia cambiada a mano: ${fmtPace(v)}/km.`});savePlan()}render();toast('Ritmos actualizados');return}
+  if(t.dataset.pd&&planDraft){const k=t.dataset.pd;planDraft[k]=k==='longDay'?+t.value:t.value;return}
   if(t.dataset.f==='unit'&&draft){readAmount(t.closest('.ed-block').dataset.path);return}
   if(t.dataset.f==='zone'&&draft){stepAt(t.closest('.ed-block').dataset.path).zone=t.value;const e2=estimate(draft.steps);const sub=$('.top .sub');if(sub)sub.textContent=`≈ ${Math.round(e2.t/60)} min · ≈ ${fmtKm(e2.d,1)} km`;return}
   if(t.dataset.zone){

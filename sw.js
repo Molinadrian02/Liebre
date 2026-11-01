@@ -1,5 +1,5 @@
 // Liebre: funciona sin conexión. Sube CACHE de versión al cambiar la app.
-const CACHE = 'liebre-v1';
+const CACHE = 'liebre-v2';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS))); self.skipWaiting(); });
 self.addEventListener('activate', e => {
