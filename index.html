@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0E1117">
+<title>Liebre</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: una columna estrecha tipo reloj deportivo; cifras grandes y el estado del ritmo pinta toda la pantalla de carrera */
+:root{
+  --bg:#F2F4F7; --surface:#FFFFFF; --line:#D9DEE6; --fg:#111720; --muted:#596476;
+  --accent:#2350D8; --accent-fg:#FFFFFF;
+  --in:#12825A; --fast:#D2541A; --slow:#6A4BE0;
+  --in-soft:#DCF2E8; --fast-soft:#FBE4D7; --slow-soft:#E8E2FC; --pause-soft:#E7EAEF;
+  --display:"Barlow Condensed","Arial Narrow","Roboto Condensed",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:14px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0E1117; --surface:#171B23; --line:#2A303B; --fg:#EEF1F5; --muted:#99A3B4;
+    --accent:#7393FF; --accent-fg:#0E1117;
+    --in:#3FCB8E; --fast:#FF8B4E; --slow:#A68FFF;
+    --in-soft:#11291E; --fast-soft:#33190C; --slow-soft:#211A40; --pause-soft:#1C2029;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent;min-height:100vh}
+button,input,select{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--display);font-weight:700;margin:0;line-height:1.05;text-wrap:balance}
+.num,.tab{font-variant-numeric:tabular-nums}
+#app{max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 20px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 96px) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:28px}
+#app.running{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px);min-height:100vh}
+
+/* ---- Cabeceras ---- */
+.top h1{font-size:44px;letter-spacing:.01em}
+.top h1 em{font-style:normal;color:var(--accent)}
+.sub{margin:6px 0 0;color:var(--muted)}
+.sec-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+h2{font-size:24px}
+.hint{margin:4px 0 12px;color:var(--muted);font-size:15px}
+.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+
+/* ---- Botones ---- */
+.btn{border:0;border-radius:999px;padding:12px 20px;font-weight:600;cursor:pointer;background:var(--surface);border:1px solid var(--line);min-height:46px}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:7px 14px;min-height:36px;font-size:15px}
+.btn.danger{color:var(--fast);border-color:var(--fast)}
+.btn.block{width:100%}
+.btn:focus-visible,.chip:focus-visible,.in:focus-visible,.icon:focus-visible,.tabbar button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.icon{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:transparent;cursor:pointer;flex:none;font-size:18px;line-height:1}
+
+/* ---- Inicio ---- */
+.chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.chip{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);cursor:pointer;text-align:left}
+.chip span{font-size:14px;color:var(--muted)}
+.chip b{font-family:var(--display);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.list{display:flex;flex-direction:column;gap:12px}
+.routine{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:14px}
+.routine h3{font-size:24px}
+.r-steps{margin:6px 0 0;font-size:15px}
+.r-meta{margin:4px 0 0;color:var(--muted);font-size:14px}
+.r-note{margin:6px 0 0;color:var(--muted);font-size:14px}
+.r-actions{display:flex;gap:8px;align-items:center}
+.r-actions .primary{flex:1}
+
+/* ---- Carrera ---- */
+.run{--tone:var(--fg);--wash:var(--bg);background:var(--wash);margin:calc(-1*(env(safe-area-inset-top,0px) + 20px)) calc(-1*max(16px,env(safe-area-inset-right,0px))) 0 calc(-1*max(16px,env(safe-area-inset-left,0px)));padding:calc(env(safe-area-inset-top,0px) + 18px) max(16px,env(safe-area-inset-right,0px)) 0 max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:18px;min-height:100vh;transition:background-color .35s}
+.run[data-state="in"]{--tone:var(--in);--wash:var(--in-soft)}
+.run[data-state="fast"]{--tone:var(--fast);--wash:var(--fast-soft)}
+.run[data-state="slow"]{--tone:var(--slow);--wash:var(--slow-soft)}
+.run[data-state="paused"]{--wash:var(--pause-soft)}
+@media (prefers-reduced-motion:reduce){.run{transition:none}}
+.run-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.run-top .blk{font-family:var(--display);font-size:30px;font-weight:700;line-height:1.05}
+.range{text-align:right;flex:none}
+.range span{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.range b{font-family:var(--display);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.pace-wrap{text-align:center;padding:8px 0 0}
+.pace{font-family:var(--display);font-weight:700;font-size:clamp(112px,34vw,176px);line-height:.9;color:var(--tone);font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.unit{color:var(--muted);font-size:14px;letter-spacing:.06em;margin-top:2px}
+.status{margin-top:10px;font-family:var(--display);font-size:28px;font-weight:600;color:var(--tone)}
+.gauge{position:relative;height:54px}
+.g-track{position:absolute;left:0;right:0;top:8px;height:14px;border-radius:7px;background:var(--surface);border:1px solid var(--line)}
+.g-band{position:absolute;top:8px;height:14px;background:var(--in);opacity:.35;border-radius:7px}
+.g-mark{position:absolute;top:0;width:6px;height:30px;margin-left:-3px;border-radius:3px;background:var(--tone);transition:left .6s ease}
+@media (prefers-reduced-motion:reduce){.g-mark{transition:none}}
+.g-labels{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.blkprog{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.bp-row{display:flex;align-items:baseline;gap:10px}
+.bp-rem{font-family:var(--display);font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.bp-lab{color:var(--muted)}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent)}
+.next{font-size:15px;color:var(--muted)}
+.totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.totals div{display:flex;flex-direction:column}
+.totals span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.totals b{font-family:var(--display);font-size:30px;font-weight:600;font-variant-numeric:tabular-nums}
+.controls{display:flex;gap:8px;margin-top:auto;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px)}
+.controls .btn{flex:1;min-height:56px;font-size:17px}
+.overlay{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:8px}
+.overlay h3{font-size:28px}
+.overlay p{margin:0;color:var(--muted);font-size:15px}
+.gps{display:flex;align-items:center;gap:8px;font-weight:600}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--fast)}
+.dot.ok{background:var(--in)}
+.dot.mid{background:var(--slow)}
+.cd{font-family:var(--display);font-size:120px;font-weight:700;text-align:center;line-height:1;color:var(--accent)}
+.err{color:var(--fast);font-weight:600}
+
+/* ---- Resumen e historial ---- */
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.stat b{display:block;font-family:var(--display);font-size:34px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.chart-box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 8px 8px;overflow-x:auto}
+.chart-box svg{display:block;width:100%;height:auto;min-width:320px}
+.ch-grid{stroke:var(--line);stroke-width:1}
+.ch-txt{fill:var(--muted);font:19px var(--body);font-variant-numeric:tabular-nums}
+.ch-band{fill:var(--in);opacity:.18}
+.ch-line{fill:none;stroke:var(--accent);stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--muted);padding:6px 8px 0;flex-wrap:wrap}
+.legend i{display:inline-block;width:14px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+th,td{padding:10px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+tr:last-child td{border-bottom:0}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:13px;font-weight:600;background:var(--pause-soft)}
+.pill.good{background:var(--in-soft);color:var(--in)}
+.pill.mid{background:var(--slow-soft);color:var(--slow)}
+.pill.bad{background:var(--fast-soft);color:var(--fast)}
+.hist{display:flex;flex-direction:column}
+.h-item{display:flex;align-items:center;gap:12px;padding:14px 4px;border-bottom:1px solid var(--line);background:none;border-left:0;border-right:0;border-top:0;text-align:left;cursor:pointer;width:100%}
+.h-item:first-child{border-top:1px solid var(--line)}
+.h-main{flex:1;min-width:0}
+.h-main b{display:block;font-size:17px}
+.h-main span{color:var(--muted);font-size:14px}
+.h-nums{text-align:right;font-variant-numeric:tabular-nums}
+.h-nums b{font-family:var(--display);font-size:24px;font-weight:600;display:block;line-height:1.1}
+.empty{color:var(--muted);padding:24px 0}
+.back{align-self:flex-start}
+
+/* ---- Ajustes y editor ---- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label,.lbl{font-size:14px;font-weight:600}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.zrow{display:grid;grid-template-columns:minmax(0,1fr) 82px 14px 82px;gap:8px;align-items:center}
+.zrow span.dash{text-align:center;color:var(--muted)}
+.in{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;min-height:44px;width:100%;min-width:0}
+.in.num{text-align:center;font-variant-numeric:tabular-nums}
+.in.bad{border-color:var(--fast)}
+.slider{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center}
+.slider input{grid-column:1/-1;width:100%;accent-color:var(--accent)}
+.slider output{font-variant-numeric:tabular-nums;color:var(--muted)}
+.toggle{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.toggle input{width:22px;height:22px;accent-color:var(--accent);flex:none}
+.small{font-size:14px;color:var(--muted);margin:0}
+.ed-block{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.ed-line{display:grid;grid-template-columns:72px 76px minmax(0,1fr) 40px;gap:8px;align-items:center}
+.ed-repeat{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:12px;border:2px dashed var(--accent);}
+.rep-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rep-head b{font-family:var(--display);font-size:28px;min-width:28px;text-align:center}
+.rep-head .grow{flex:1}
+.ed-list{display:flex;flex-direction:column;gap:10px}
+.confirm{color:var(--fast);font-weight:600}
+
+/* ---- Barra de pestañas ---- */
+.tabbar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding:0 max(8px,env(safe-area-inset-right,0px)) env(safe-area-inset-bottom,0px) max(8px,env(safe-area-inset-left,0px));z-index:5}
+.tabbar button{flex:1;max-width:186px;background:none;border:0;padding:14px 4px 16px;font-weight:600;color:var(--muted);cursor:pointer;font-size:15px}
+.tabbar button[aria-current="page"]{color:var(--accent);box-shadow:inset 0 3px 0 var(--accent)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 72px);background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:999px;font-weight:600;z-index:9;max-width:calc(100% - 32px)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<nav class="tabbar" id="tabbar">
+  <button data-view="home">Entrenar</button>
+  <button data-view="history">Historial</button>
+  <button data-view="settings">Ajustes</button>
+</nav>
+<div class="toast" id="toast" hidden></div>
+<script>
+'use strict';
+/* ============ utilidades ============ */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const clone=o=>JSON.parse(JSON.stringify(o));
+const store={
+  get(k,d){try{const v=localStorage.getItem('liebre.'+k);return v?JSON.parse(v):d}catch(e){return d}},
+  set(k,v){try{localStorage.setItem('liebre.'+k,JSON.stringify(v))}catch(e){toast('No se ha podido guardar en este navegador')}}
+};
+const pad=n=>String(n).padStart(2,'0');
+const fmtPace=s=>{if(s==null||!isFinite(s))return '–:––';s=Math.round(s);return Math.floor(s/60)+':'+pad(s%60)};
+const parsePace=str=>{const m=String(str).trim().match(/^(\d{1,2})\s*[:.,']\s*(\d{1,2})$/);if(!m||+m[2]>59)return null;return +m[1]*60+ +m[2]};
+const fmtDur=ms=>{let s=Math.max(0,Math.round(ms/1000));const h=Math.floor(s/3600);s%=3600;const m=Math.floor(s/60);s%=60;return h?`${h}:${pad(m)}:${pad(s)}`:`${m}:${pad(s)}`};
+const fmtKm=(m,d=2)=>(m/1000).toFixed(d).replace('.',',');
+const paceWords=s=>{s=Math.round(s);const m=Math.floor(s/60),r=s%60;return r===0?`${m} en punto`:`${m} ${r<10?'cero '+r:r}`};
+function hav(a,b){const R=6371000,toR=Math.PI/180;const dLa=(b.lat-a.lat)*toR,dLo=(b.lon-a.lon)*toR;const x=Math.sin(dLa/2)**2+Math.cos(a.lat*toR)*Math.cos(b.lat*toR)*Math.sin(dLo/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
+let toastT;function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,2600)}
+
+/* ============ datos ============ */
+// Ritmos en segundos por km. min = el más rápido del rango, max = el más lento.
+const DEFAULT_ZONES={
+  suave:{name:'Suave',min:410,max:450},
+  carrera:{name:'Ritmo 10K',min:360,max:375},
+  umbral:{name:'Umbral',min:355,max:370},
+  series:{name:'Series',min:325,max:340}
+};
+const B=(label,kind,value,zone)=>({type:'block',label,kind,value,zone});
+const R=(n,blocks)=>({type:'repeat',n,blocks});
+const DEFAULT_ROUTINES=[
+  {id:'r-suave',name:'Rodaje suave',note:'Base aeróbica. Tienes que poder hablar mientras corres.',steps:[B('Rodaje','time',1800,'suave')]},
+  {id:'r-series',name:'Series 6×400 m',note:'Velocidad. En la recuperación trota muy suave o anda.',steps:[B('Calentamiento','time',600,'suave'),R(6,[B('Serie','dist',400,'series'),B('Recuperación','time',90,'libre')]),B('Vuelta a la calma','time',480,'suave')]},
+  {id:'r-umbral',name:'Umbral 3×8 min',note:'Exigente pero controlado: puedes decir frases cortas, no conversar.',steps:[B('Calentamiento','time',600,'suave'),R(3,[B('Umbral','time',480,'umbral'),B('Recuperación','time',120,'suave')]),B('Vuelta a la calma','time',480,'suave')]},
+  {id:'r-10k',name:'Ritmo San Silvestre',note:'5 km clavando el ritmo objetivo del 10K.',steps:[B('Calentamiento','time',600,'suave'),B('Ritmo carrera','dist',5000,'carrera'),B('Vuelta a la calma','time',300,'suave')]},
+  {id:'r-larga',name:'Tirada larga 8 km',note:'Volumen. Lento a propósito: aquí el objetivo es no pasarte de rápido.',steps:[B('Tirada larga','dist',8000,'suave')]}
+];
+const DEFAULT_SETTINGS={tol:3,grace:6,repeat:8,vol:0.7,voiceBlocks:true,voiceKm:true,alertVoice:false,sim:false,simSpeed:10};
+
+let zones=Object.assign(clone(DEFAULT_ZONES),store.get('zones',{}));
+let routines=store.get('routines',null)||clone(DEFAULT_ROUTINES);
+let history=store.get('history',[]);
+let settings=Object.assign({},DEFAULT_SETTINGS,store.get('settings',{}));
+const LIBRE={name:'Libre',min:null,max:null};
+const zoneOf=k=>k==='libre'?LIBRE:(zones[k]||LIBRE);
+
+function flatten(steps){const out=[];for(const s of steps){if(s.type==='repeat'){for(let i=1;i<=s.n;i++)for(const b of s.blocks)out.push({...b,rep:`${i}/${s.n}`})}else out.push({...s})}return out}
+function amountText(b,spoken){
+  if(b.kind==='time'){const v=b.value,mi=spoken?' minutos':' min',se=spoken?' segundos':' s';
+    if(v%60===0)return (v/60)+mi; if(v<60)return v+se; return Math.floor(v/60)+mi+' '+(v%60)+se}
+  if(b.kind==='dist'){if(b.value>=1000&&b.value%100===0)return String(b.value/1000).replace('.',',')+(spoken?' kilómetros':' km');return b.value+(spoken?' metros':' m')}
+  return 'sin final';
+}
+const zLow=k=>{const n=zoneOf(k).name;return n.charAt(0).toLowerCase()+n.slice(1)};
+function stepsSummary(steps){return steps.map(s=>s.type==='repeat'?`${s.n} × (${s.blocks.map(b=>`${amountText(b)} ${zLow(b.zone)}`).join(' + ')})`:`${amountText(s)} ${zLow(s.zone)}`).join(' · ')}
+function midPace(k){const z=zoneOf(k);return z.min!=null?(z.min+z.max)/2:(zones.suave.max+40)}
+function estimate(steps){let t=0,d=0;for(const b of flatten(steps)){const p=midPace(b.zone);if(b.kind==='time'){t+=b.value;d+=b.value/p*1000}else if(b.kind==='dist'){d+=b.value;t+=b.value/1000*p}}return{t,d}}
+
+/* ============ sonido y voz ============ */
+let ac=null;
+function audioInit(){try{if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume()}catch(e){}}
+function tone(freq,dur,when=0,type='square'){
+  if(!ac)return;const t=ac.currentTime+when+0.01;const o=ac.createOscillator(),g=ac.createGain();
+  const v=Math.max(0.0002,settings.vol*0.5);o.type=type;o.frequency.value=freq;
+  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(v,t+0.012);g.gain.setValueAtTime(v,t+dur-0.03);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(g).connect(ac.destination);o.start(t);o.stop(t+dur+0.03);
+}
+const CUES={
+  fast(){tone(1400,.11);tone(1400,.11,.17);tone(1400,.11,.34)}, // tres agudos cortos: frena
+  slow(){tone(300,.55,0,'sawtooth')},                          // grave largo: aprieta
+  ok(){tone(880,.09,0,'triangle');tone(1320,.14,.11,'triangle')},
+  block(){[0,.22,.44].forEach(w=>tone(1050,.14,w,'triangle'))},
+  count(){tone(700,.09,0,'triangle')},
+  go(){tone(1320,.45,0,'triangle')}
+};
+function cue(n){audioInit();CUES[n]&&CUES[n]()}
+let esVoice=null;
+function pickVoice(){try{const vs=speechSynthesis.getVoices();esVoice=vs.find(v=>v.lang==='es-ES')||vs.find(v=>v.lang&&v.lang.startsWith('es'))||null}catch(e){}}
+if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
+function speak(text,urgent){
+  if(!('speechSynthesis' in window))return;
+  try{if(urgent)speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='es-ES';if(esVoice)u.voice=esVoice;u.rate=1.05;u.volume=Math.min(1,settings.vol+0.3);speechSynthesis.speak(u)}catch(e){}
+}
+
+/* ============ motor de carrera ============ */
+const clock={sim:0,now(){return settings.sim?this.sim:Date.now()}};
+let run=null,geoId=null,tickTimer=null,simTimer=null,sim=null,wl=null;
+
+async function wakeOn(){try{if('wakeLock' in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}}
+function wakeOff(){try{wl&&wl.release()}catch(e){}wl=null}
+document.addEventListener('visibilitychange',()=>{if(run&&document.visibilityState==='visible')wakeOn()});
+window.addEventListener('beforeunload',e=>{if(run&&run.phase==='running'){e.preventDefault();e.returnValue=''}});
+
+function startRun(routine){
+  audioInit();
+  run={routine:{id:routine.id,name:routine.name},blocks:flatten(routine.steps),phase:'ready',bi:0,elapsed:0,dist:0,
+    points:[],last:null,rejects:0,pace:null,acc:null,lastFixT:0,gpsError:null,state:'none',settling:false,
+    outDir:null,outSince:null,lastAlert:0,alerted:false,inMs:0,rangeMs:0,bInMs:0,bRangeMs:0,
+    samples:[],lastSampleE:-1e9,splits:[],lastSplitE:0,blockStart:{e:0,d:0},blockStats:[],countSaid:{},said100:false,
+    paused:false,startedAt:null,lastTickT:null,endArm:0,ctrlKey:''};
+  setView('run');
+  wakeOn();
+  if(settings.sim){
+    clock.sim=Date.now();sim={lat:40.4380,lon:-3.8100,ph:Math.random()*6};
+    simTimer=setInterval(simStep,1000/settings.simSpeed);simStep();
+  }else if(!('geolocation' in navigator)){
+    run.gpsError='Este navegador no da acceso al GPS.';updateRun();
+  }else{
+    geoId=navigator.geolocation.watchPosition(
+      p=>onPos(p.coords.latitude,p.coords.longitude,p.coords.accuracy,Date.now()),
+      e=>{if(!run)return;run.gpsError=e.code===1?'Permiso de ubicación denegado. Actívalo para esta web en los ajustes de Chrome y vuelve a entrar.':'Todavía no hay señal GPS. Sal a cielo abierto y espera unos segundos.';updateRun()},
+      {enableHighAccuracy:true,maximumAge:0,timeout:20000});
+    tickTimer=setInterval(tick,1000);
+  }
+}
+function stopDrivers(){if(geoId!=null)navigator.geolocation.clearWatch(geoId);geoId=null;clearInterval(tickTimer);clearInterval(simTimer);tickTimer=simTimer=null}
+
+function simStep(){
+  clock.sim+=1000;if(!run)return;
+  if(run.phase==='running'&&!run.paused){
+    const b=run.blocks[run.bi]||run.blocks[run.blocks.length-1];
+    const t=run.elapsed/1000;const p=midPace(b.zone)+24*Math.sin(t/40+sim.ph)+10*(Math.random()-.5);
+    sim.lat+=(1000/p)/111320;
+  }
+  const n=()=>(Math.random()-.5)*2.4/111320;
+  onPos(sim.lat+n(),sim.lon+n(),5+Math.random()*3,clock.now());
+  tick();
+}
+
+function onPos(lat,lon,acc,t){
+  if(!run)return;run.acc=acc;run.lastFixT=t;run.gpsError=null;
+  if(run.phase!=='running'||run.paused){run.last=null;if(run.phase==='ready')updateRun();return}
+  if(acc>35)return;
+  const p={lat,lon,t};
+  if(run.last){
+    const d=hav(run.last,p),dt=(t-run.last.t)/1000;if(dt<=0)return;
+    if(d/dt>9){if(++run.rejects<4)return;run.rejects=0;run.last=p;return}  // salto imposible: descartar
+    run.rejects=0;
+    if(d<Math.min(acc,12)*0.5&&dt<4)return;  // ruido estando casi parado
+    run.dist+=d;
+  }
+  run.last=p;run.points.push({t,d:run.dist});
+  while(run.points.length&&run.points[0].t<t-60000)run.points.shift();
+}
+
+// Ritmo suavizado: distancia recorrida en los últimos 20 s
+function computePace(now){
+  const pts=run.points;if(pts.length<2)return null;
+  const last=pts[pts.length-1];if(now-last.t>8000)return null;
+  let first=null;for(const p of pts){if(p.t>=now-20000){first=p;break}}
+  if(!first||first===last)return null;
+  const dt=(last.t-first.t)/1000,dd=last.d-first.d;
+  if(dt<8||dd<12)return null;
+  const pace=dt/(dd/1000);return pace>900?null:pace;
+}
+
+function blockProgress(){
+  const b=run.blocks[run.bi];const be=run.elapsed-run.blockStart.e,bd=run.dist-run.blockStart.d;
+  if(b.kind==='time')return{done:be>=b.value*1000,remaining:b.value*1000-be,frac:be/(b.value*1000),be,bd};
+  if(b.kind==='dist')return{done:bd>=b.value,remaining:b.value-bd,frac:bd/b.value,be,bd};
+  return{done:false,remaining:null,frac:0,be,bd};
+}
+
+function tick(){
+  if(!run)return;const now=clock.now();
+  if(run.phase!=='running'){updateRun();return}
+  const dt=run.lastTickT==null?0:now-run.lastTickT;run.lastTickT=now;
+  if(run.paused){updateRun();return}
+  run.elapsed+=dt;
+  const raw=computePace(now);
+  run.pace=raw==null?null:(run.pace==null?raw:run.pace*0.5+raw*0.5);
+  while(run.dist>=(run.splits.length+1)*1000){
+    const sp=run.elapsed-run.lastSplitE;run.splits.push(Math.round(sp));run.lastSplitE=run.elapsed;
+    if(settings.voiceKm)speak(`Kilómetro ${run.splits.length}. Lo has hecho a ${paceWords(sp/1000)}.`);
+  }
+  evalAlert(now,dt);
+  if(run.elapsed-run.lastSampleE>=5000){run.samples.push([Math.round(run.elapsed/1000),Math.round(run.dist),run.pace==null?null:Math.round(run.pace),run.bi]);run.lastSampleE=run.elapsed}
+  checkBlock();
+  updateRun();
+}
+
+function evalAlert(now,dt){
+  const b=run.blocks[run.bi],z=zoneOf(b.zone);
+  run.settling=false;
+  if(z.min==null){run.state='free';return}
+  if(run.pace==null){run.state=now-run.lastFixT>8000?'nogps':'wait';run.outDir=null;run.outSince=null;return}
+  const p=run.pace,tol=settings.tol;let s;
+  if(p<z.min-tol)s='fast';else if(p>z.max+tol)s='slow';
+  else if(p>=z.min&&p<=z.max)s='in';
+  else s=(run.state==='fast'||run.state==='slow')?run.state:'in';  // histéresis en la franja de tolerancia
+  const settling=(run.elapsed-run.blockStart.e)<20000;
+  run.state=s;run.settling=settling;
+  if(settling)return;
+  run.rangeMs+=dt;run.bRangeMs+=dt;if(s==='in'){run.inMs+=dt;run.bInMs+=dt}
+  if(s!=='in'){
+    if(run.outDir!==s){run.outDir=s;run.outSince=now}
+    if(now-run.outSince>=settings.grace*1000&&now-run.lastAlert>=settings.repeat*1000){
+      cue(s);if(settings.alertVoice)speak(s==='fast'?'Más despacio':'Más rápido',true);
+      run.lastAlert=now;run.alerted=true;
+    }
+  }else{run.outDir=null;run.outSince=null;if(run.alerted){cue('ok');run.alerted=false}}
+}
+
+function checkBlock(){
+  const b=run.blocks[run.bi],pr=blockProgress();
+  if(b.kind==='time'){const r=Math.ceil(pr.remaining/1000);if(r>=1&&r<=3&&!run.countSaid[r]){run.countSaid[r]=1;cue('count')}}
+  if(b.kind==='dist'&&b.value>=300&&pr.remaining<=100&&!run.said100){run.said100=true;if(settings.voiceBlocks)speak('Últimos cien metros')}
+  if(pr.done)nextBlock();
+}
+function closeBlock(){
+  const pr=blockProgress(),b=run.blocks[run.bi];
+  run.blockStats.push({label:b.label,rep:b.rep||'',zone:b.zone,ms:Math.round(pr.be),m:Math.round(pr.bd),inPct:run.bRangeMs>3000?Math.round(100*run.bInMs/run.bRangeMs):null});
+}
+function nextBlock(){
+  closeBlock();run.bi++;
+  Object.assign(run,{blockStart:{e:run.elapsed,d:run.dist},bInMs:0,bRangeMs:0,countSaid:{},said100:false,outDir:null,outSince:null,alerted:false,state:'none'});
+  if(run.bi>=run.blocks.length){finishRun(false);return}
+  cue('block');announceBlock();
+}
+function announceBlock(){
+  if(!settings.voiceBlocks)return;const b=run.blocks[run.bi],z=zoneOf(b.zone);
+  let t=`${b.label}${b.rep?', '+b.rep.replace('/',' de '):''}. ${b.kind==='open'?'':amountText(b,true)}`;
+  t+=z.min!=null?`, entre ${paceWords(z.min)} y ${paceWords(z.max)}.`:', ritmo libre.';speak(t);
+}
+function beginCountdown(){
+  audioInit();if(run.phase!=='ready')return;run.phase='countdown';run.cd=3;cue('count');updateRun();
+  const iv=setInterval(()=>{if(!run){clearInterval(iv);return}run.cd--;
+    if(run.cd>0){cue('count');updateRun()}
+    else{clearInterval(iv);cue('go');Object.assign(run,{phase:'running',startedAt:Date.now(),lastTickT:clock.now(),last:null,points:[],blockStart:{e:0,d:0}});announceBlock();updateRun()}
+  },1000);
+}
+function togglePause(){
+  run.paused=!run.paused;
+  if(!run.paused){run.last=null;run.points=[];run.pace=null;run.lastTickT=clock.now();run.outDir=null;run.outSince=null;speak('Seguimos',true)}
+  else speak('Pausa',true);
+  updateRun();
+}
+function finishRun(closeCurrent){
+  if(!run)return;
+  const started=run.phase==='running';
+  if(closeCurrent&&started&&run.bi<run.blocks.length)closeBlock();
+  stopDrivers();wakeOff();
+  if(!started){run=null;setView('home');return}
+  const used={};for(const b of run.blocks){const z=zoneOf(b.zone);if(z.min!=null)used[b.zone]=[z.min,z.max]}
+  const rec={id:uid(),date:run.startedAt,name:run.routine.name,ms:Math.round(run.elapsed),m:Math.round(run.dist),
+    inPct:run.rangeMs>5000?Math.round(100*run.inMs/run.rangeMs):null,splits:run.splits,blocks:run.blockStats,samples:run.samples,z:used,sim:settings.sim};
+  cue('block');
+  if(settings.voiceBlocks)speak(`Entrenamiento terminado. ${fmtKm(rec.m)} kilómetros${rec.inPct!=null?`, ${rec.inPct} por ciento del tiempo en ritmo`:''}.`);
+  run=null;
+  if(rec.ms>=30000){history.unshift(rec);store.set('history',history)}
+  setView('detail',rec.id,rec);
+}
+
+/* ============ vistas ============ */
+let view='home',viewArg=null,draft=null;
+const app=$('#app');
+function setView(v,arg,extra){
+  view=v;viewArg=arg;
+  $('#tabbar').hidden=v==='run';
+  app.classList.toggle('running',v==='run');
+  const cur=v==='detail'?'history':v==='editor'?'home':v;
+  for(const b of document.querySelectorAll('#tabbar button')){if(b.dataset.view===cur)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')}
+  render(extra);window.scrollTo(0,0);
+}
+function render(extra){
+  if(view==='home')app.innerHTML=viewHome();
+  else if(view==='history')app.innerHTML=viewHistory();
+  else if(view==='settings')app.innerHTML=viewSettings();
+  else if(view==='editor')app.innerHTML=viewEditor();
+  else if(view==='detail'){const rec=extra||history.find(h=>h.id===viewArg);app.innerHTML=rec?viewDetail(rec):viewHistory()}
+  else if(view==='run'){app.innerHTML=viewRun();run.ctrlKey='';updateRun()}
+}
+
+function viewHome(){
+  const chips=Object.entries(zones).map(([k,z])=>`<button class="chip" data-quick="${k}"><span>${esc(z.name)}</span><b>${fmtPace(z.min)}–${fmtPace(z.max)}</b></button>`).join('');
+  const cards=routines.map(r=>{const e=estimate(r.steps);return `<article class="routine">
+    <div><h3>${esc(r.name)}</h3><p class="r-steps">${esc(stepsSummary(r.steps))}</p>${r.note?`<p class="r-note">${esc(r.note)}</p>`:''}
+    <p class="r-meta tab">≈ ${Math.round(e.t/60)} min · ≈ ${fmtKm(e.d,1)} km</p></div>
+    <div class="r-actions"><button class="btn primary" data-start="${r.id}">Empezar</button><button class="btn sm" data-edit="${r.id}">Editar</button></div></article>`}).join('');
+  return `<header class="top"><h1>Lie<em>bre</em></h1><p class="sub">Te avisa con sonidos cuando te sales del ritmo, para que no tengas que mirar el móvil.</p></header>
+  ${settings.sim?`<p class="small"><span class="pill mid">Modo prueba activo</span> El GPS es simulado. Desactívalo en Ajustes antes de salir a correr.</p>`:''}
+  <section><h2>Carrera libre</h2><p class="hint">Elige un ritmo y sal sin bloques. Termina cuando quieras.</p><div class="chips">${chips}</div></section>
+  <section><div class="sec-head"><h2>Rutinas</h2><button class="btn sm" data-act="new">+ Nueva rutina</button></div><div class="list">${cards||'<p class="empty">No tienes rutinas. Crea una con «Nueva rutina».</p>'}</div></section>`;
+}
+
+function viewRun(){
+  return `<div class="run" id="run" data-state="none">
+    <div class="run-top"><div><div class="eyebrow" id="r-routine"></div><div class="blk" id="r-block"></div></div><div class="range" id="r-range"></div></div>
+    <div class="overlay" id="r-overlay" hidden></div>
+    <div id="r-live">
+      <div class="pace-wrap"><div class="pace" id="r-pace" aria-live="off">–:––</div><div class="unit">MIN/KM · últimos 20 s</div><div class="status" id="r-status"></div></div>
+    </div>
+    <div class="gauge" id="r-gauge" aria-hidden="true"><div class="g-track"></div><div class="g-band" id="g-band"></div><div class="g-mark" id="g-mark"></div><div class="g-labels"><span>← más lento</span><span>más rápido →</span></div></div>
+    <div class="blkprog"><div class="bp-row"><span class="bp-rem" id="r-rem"></span><span class="bp-lab" id="r-remlab"></span></div><div class="bar"><i id="r-bar"></i></div><div class="next" id="r-next"></div></div>
+    <div class="totals"><div><span>Tiempo</span><b id="r-time">0:00</b></div><div><span>Km</span><b id="r-dist">0,00</b></div><div><span>Ritmo medio</span><b id="r-avg">–:––</b></div></div>
+    <div class="controls" id="r-controls"></div>
+  </div>`;
+}
+const STATUS={in:'En ritmo',fast:'Vas rápido · frena',slow:'Vas lento · aprieta',wait:'Calculando ritmo…',nogps:'Sin señal GPS',free:'Ritmo libre',none:''};
+function updateRun(){
+  if(!run||view!=='run'||!$('#run'))return;
+  const b=run.blocks[Math.min(run.bi,run.blocks.length-1)],z=zoneOf(b.zone);
+  const st=run.phase!=='running'?'none':run.paused?'paused':(run.settling&&run.state!=='in'?'none':run.state);
+  $('#run').dataset.state=st;
+  $('#r-routine').textContent=run.routine.name;
+  $('#r-block').textContent=b.label+(b.rep?` ${b.rep}`:'');
+  $('#r-range').innerHTML=z.min!=null?`<span>${esc(z.name)}</span><b>${fmtPace(z.min)}–${fmtPace(z.max)}</b>`:`<span>Libre</span><b>sin avisos</b>`;
+  $('#r-pace').textContent=fmtPace(run.pace);
+  let status=run.paused?'En pausa':STATUS[run.state]||'';
+  if(run.phase==='running'&&!run.paused&&run.settling&&z.min!=null&&run.pace!=null)status=run.state==='in'?'En ritmo':'Ajustando ritmo…';
+  $('#r-status').textContent=run.phase==='running'?status:'';
+  // indicador
+  const gauge=$('#r-gauge');gauge.hidden=z.min==null;
+  if(z.min!=null){const c=(z.min+z.max)/2,hs=Math.max(45,(z.max-z.min)/2+30),x=p=>Math.min(100,Math.max(0,((c+hs)-p)/(2*hs)*100));
+    const band=$('#g-band');band.style.left=x(z.max)+'%';band.style.width=(x(z.min)-x(z.max))+'%';
+    const mk=$('#g-mark');mk.hidden=run.pace==null;if(run.pace!=null)mk.style.left=x(run.pace)+'%'}
+  // bloque
+  const pr=blockProgress();
+  if(b.kind==='time'){$('#r-rem').textContent=fmtDur(Math.ceil(Math.max(0,pr.remaining)/1000)*1000);$('#r-remlab').textContent='quedan en este bloque'}
+  else if(b.kind==='dist'){const r=Math.max(0,Math.ceil(pr.remaining));$('#r-rem').textContent=r>=1000?fmtKm(r)+' km':r+' m';$('#r-remlab').textContent='quedan en este bloque'}
+  else{$('#r-rem').textContent=fmtDur(pr.be);$('#r-remlab').textContent='sin final · termina cuando quieras'}
+  $('#r-bar').style.width=Math.min(100,pr.frac*100)+'%';
+  const nb=run.blocks[run.bi+1];
+  $('#r-next').textContent=nb?`Después: ${nb.label}${nb.rep?' '+nb.rep:''} · ${amountText(nb)} ${zLow(nb.zone)}`:(b.kind==='open'?'':'Último bloque');
+  $('#r-time').textContent=fmtDur(run.elapsed);
+  $('#r-dist').textContent=fmtKm(run.dist);
+  $('#r-avg').textContent=run.dist>50?fmtPace(run.elapsed/1000/(run.dist/1000)):'–:––';
+  // panel de preparación
+  const ov=$('#r-overlay'),live=$('#r-live');
+  if(run.phase==='ready'){
+    const a=run.acc,q=a==null?'':a<=12?'ok':a<=25?'mid':'';
+    ov.hidden=false;live.hidden=true;
+    ov.innerHTML=`<h3>Preparado</h3>
+      <div class="gps"><i class="dot ${q}"></i>${a==null?'Buscando GPS…':`GPS: precisión ±${Math.round(a)} m`}</div>
+      ${run.gpsError?`<p class="err">${esc(run.gpsError)}</p>`:''}
+      <p>Espera a que la precisión baje de 20 m. Durante la carrera deja la pantalla encendida y Chrome en primer plano: con la pantalla apagada el móvil deja de enviar el GPS a la app.</p>
+      <p>Sonidos: <b>tres pitidos agudos</b> = vas rápido, frena. <b>Un tono grave largo</b> = vas lento, aprieta. <b>Dos notas que suben</b> = has vuelto al ritmo.</p>`;
+  }else if(run.phase==='countdown'){ov.hidden=false;live.hidden=true;ov.innerHTML=`<div class="cd tab">${run.cd}</div>`}
+  else{ov.hidden=true;live.hidden=false;if(run.gpsError&&!run.paused){$('#r-status').textContent=run.gpsError}}
+  // controles
+  const key=run.phase+'|'+run.paused+'|'+(Date.now()<run.endArm)+'|'+(run.acc!=null&&run.acc<=20);
+  if(key!==run.ctrlKey){run.ctrlKey=key;const c=$('#r-controls');
+    if(run.phase==='ready')c.innerHTML=`<button class="btn" data-run="cancel">Cancelar</button><button class="btn primary" data-run="go">${run.acc!=null&&run.acc<=20?'Empezar':'Empezar igualmente'}</button>`;
+    else if(run.phase==='countdown')c.innerHTML=`<button class="btn" data-run="cancel">Cancelar</button>`;
+    else c.innerHTML=`<button class="btn" data-run="pause">${run.paused?'Reanudar':'Pausar'}</button><button class="btn" data-run="skip">Saltar</button><button class="btn ${Date.now()<run.endArm?'danger':''}" data-run="end">${Date.now()<run.endArm?'¿Seguro? Toca':'Terminar'}</button>`}
+}
+
+function chartSvg(rec){
+  const pts=rec.samples.filter(s=>s[2]!=null);if(pts.length<2)return '<p class="small" style="padding:8px">No hay suficientes datos de ritmo para dibujar la gráfica.</p>';
+  const W=640,H=280,L=66,Rr=12,T=12,Bt=36,T1=rec.samples[rec.samples.length-1][0]||1;
+  const bands=[];let acc=0;for(const b of rec.blocks){const s=acc/1000;acc+=b.ms;const r=rec.z&&rec.z[b.zone];if(r)bands.push([s,acc/1000,r[0],r[1]])}
+  let lo=Math.min(...pts.map(p=>p[2]),...bands.map(b=>b[2]))-15,hi=Math.max(...pts.map(p=>p[2]),...bands.map(b=>b[3]))+15;
+  lo=Math.floor(lo/30)*30;hi=Math.ceil(hi/30)*30;if(hi-lo<60)hi=lo+60;
+  const X=t=>L+(t/T1)*(W-L-Rr),Y=p=>T+(p-lo)/(hi-lo)*(H-T-Bt); // más rápido arriba
+  let g='';for(let p=lo;p<=hi;p+=30)g+=`<line class="ch-grid" x1="${L}" x2="${W-Rr}" y1="${Y(p)}" y2="${Y(p)}"/><text class="ch-txt" x="${L-6}" y="${Y(p)+4}" text-anchor="end">${fmtPace(p)}</text>`;
+  const step=T1>3000?600:T1>1200?300:T1>400?120:60;
+  for(let t=0;t<=T1;t+=step)g+=`<text class="ch-txt" x="${X(t)}" y="${H-6}" text-anchor="middle">${Math.round(t/60)}′</text>`;
+  const bd=bands.map(b=>`<rect class="ch-band" x="${X(b[0])}" width="${Math.max(0,X(b[1])-X(b[0]))}" y="${Y(b[2])}" height="${Math.max(2,Y(b[3])-Y(b[2]))}"/>`).join('');
+  let d='',pen=false;for(const s of rec.samples){if(s[2]==null){pen=false;continue}const yp=Math.min(hi,Math.max(lo,s[2]));d+=(pen?'L':'M')+X(s[0]).toFixed(1)+' '+Y(yp).toFixed(1);pen=true}
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Ritmo a lo largo del entrenamiento con el rango objetivo de cada bloque">${g}${bd}<path class="ch-line" d="${d}"/></svg>
+  <div class="legend"><span><i style="background:var(--accent)"></i>Tu ritmo</span><span><i style="background:var(--in);opacity:.35"></i>Rango objetivo</span><span>Arriba = más rápido</span></div>`;
+}
+function pillPct(v){if(v==null)return '<span class="pill">—</span>';return `<span class="pill ${v>=75?'good':v>=50?'mid':'bad'}">${v}%</span>`}
+function viewDetail(rec){
+  const dt=new Date(rec.date);
+  const rows=rec.blocks.map(b=>`<tr><td>${esc(b.label)}${b.rep?' '+b.rep:''}</td><td>${b.m>=1000?fmtKm(b.m)+' km':b.m+' m'}</td><td>${fmtDur(b.ms)}</td><td>${b.m>30?fmtPace(b.ms/1000/(b.m/1000)):'–'}</td><td>${zoneOf(b.zone).min==null?'<span class="pill">libre</span>':pillPct(b.inPct)}</td></tr>`).join('');
+  const splits=rec.splits.length?rec.splits.map((s,i)=>`<tr><td>Km ${i+1}</td><td>${fmtPace(s/1000)}</td></tr>`).join(''):'';
+  return `<button class="btn sm back" data-act="history">← Historial</button>
+  <header><div class="eyebrow">${dt.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'})} · ${dt.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}${rec.sim?' · simulado':''}</div><h1 style="font-size:38px;margin-top:4px">${esc(rec.name)}</h1></header>
+  <div class="stats">
+    <div class="stat"><span class="eyebrow">Distancia</span><b>${fmtKm(rec.m)} km</b></div>
+    <div class="stat"><span class="eyebrow">Tiempo</span><b>${fmtDur(rec.ms)}</b></div>
+    <div class="stat"><span class="eyebrow">Ritmo medio</span><b>${rec.m>50?fmtPace(rec.ms/1000/(rec.m/1000)):'–:––'}</b></div>
+    <div class="stat"><span class="eyebrow">Tiempo en ritmo</span><b>${rec.inPct==null?'—':rec.inPct+'%'}</b></div>
+  </div>
+  <section><h2 style="margin-bottom:10px">Ritmo</h2><div class="chart-box">${chartSvg(rec)}</div></section>
+  ${rows?`<section><h2 style="margin-bottom:10px">Bloques</h2><div class="tbl-wrap"><table><thead><tr><th>Bloque</th><th>Dist.</th><th>Tiempo</th><th>Ritmo</th><th>En rango</th></tr></thead><tbody>${rows}</tbody></table></div></section>`:''}
+  ${splits?`<section><h2 style="margin-bottom:10px">Por kilómetro</h2><div class="tbl-wrap"><table><thead><tr><th>Parcial</th><th>Ritmo</th></tr></thead><tbody>${splits}</tbody></table></div></section>`:''}
+  <div class="row"><button class="btn danger sm" data-delrun="${rec.id}">${delArm===rec.id?'Toca otra vez para borrar':'Borrar entrenamiento'}</button></div>`;
+}
+let delArm=null;
+function viewHistory(){
+  if(!history.length)return `<header class="top"><h1>Historial</h1></header><p class="empty">Aún no hay entrenamientos. Cuando termines uno aparecerá aquí con su gráfica y el porcentaje de tiempo que fuiste dentro del rango.</p>`;
+  const tot=history.reduce((a,h)=>a+h.m,0);
+  return `<header class="top"><h1>Historial</h1><p class="sub tab">${history.length} entrenamientos · ${fmtKm(tot,1)} km en total</p></header>
+  <div class="hist">${history.map(h=>{const d=new Date(h.date);return `<button class="h-item" data-open="${h.id}"><div class="h-main"><b>${esc(h.name)}</b><span>${d.toLocaleDateString('es-ES',{day:'numeric',month:'short'})} · ${fmtDur(h.ms)}${h.sim?' · simulado':''}</span></div><div class="h-nums"><b>${fmtKm(h.m)} km</b>${pillPct(h.inPct)}</div></button>`}).join('')}</div>`;
+}
+
+function viewSettings(){
+  const zr=Object.entries(zones).map(([k,z])=>`<div class="zrow"><span class="lbl">${esc(z.name)}</span><input class="in num" id="z-${k}-min" data-zone="${k}" data-end="min" value="${fmtPace(z.min)}" inputmode="decimal" aria-label="${esc(z.name)}: ritmo más rápido"><span class="dash">–</span><input class="in num" id="z-${k}-max" data-zone="${k}" data-end="max" value="${fmtPace(z.max)}" inputmode="decimal" aria-label="${esc(z.name)}: ritmo más lento"></div>`).join('');
+  const sl=(id,label,min,max,step,unit)=>`<div class="slider"><label for="s-${id}" class="lbl">${label}</label><output id="o-${id}">${settings[id]}${unit}</output><input type="range" id="s-${id}" data-set="${id}" data-unit="${unit}" min="${min}" max="${max}" step="${step}" value="${settings[id]}"></div>`;
+  const tg=(id,label,help)=>`<label class="toggle" for="t-${id}"><span><span class="lbl">${label}</span>${help?`<br><span class="small">${help}</span>`:''}</span><input type="checkbox" id="t-${id}" data-tog="${id}" ${settings[id]?'checked':''}></label>`;
+  return `<header class="top"><h1>Ajustes</h1></header>
+  <section class="card"><div><h2>Mis ritmos</h2><p class="small">En min/km, del más rápido al más lento. Todas las rutinas usan estos rangos, así que si mejoras solo tienes que cambiarlos aquí.</p></div>${zr}</section>
+  <section class="card"><h2>Avisos</h2>
+    ${sl('tol','Margen de tolerancia',0,10,1,' s')}
+    <p class="small">Segundos por km que puedes salirte del rango sin que suene nada.</p>
+    ${sl('grace','Espera antes de avisar',2,15,1,' s')}
+    ${sl('repeat','Repetir aviso cada',4,30,1,' s')}
+    <div class="slider"><label for="s-vol" class="lbl">Volumen</label><output id="o-vol">${Math.round(settings.vol*100)}%</output><input type="range" id="s-vol" data-set="vol" data-unit="%" min="0.1" max="1" step="0.05" value="${settings.vol}"></div>
+    <div class="row"><button class="btn sm" data-test="fast">Probar «rápido»</button><button class="btn sm" data-test="slow">Probar «lento»</button><button class="btn sm" data-test="ok">Probar «en ritmo»</button></div>
+    ${tg('alertVoice','Decir «más despacio / más rápido»','Además del pitido. Útil si corres con música.')}
+    ${tg('voiceBlocks','Anunciar bloques con voz','')}
+    ${tg('voiceKm','Anunciar cada kilómetro','')}
+  </section>
+  <section class="card"><h2>Modo prueba</h2>
+    ${tg('sim','GPS simulado','Para probar la app en casa. El corredor virtual oscila alrededor del ritmo objetivo.')}
+    ${sl('simSpeed','Velocidad de la simulación',1,20,1,'×')}
+  </section>
+  <section class="card"><h2>Datos</h2><p class="small">Todo se guarda solo en este móvil, en el navegador. Si borras los datos de Chrome para esta web, se pierde el historial.</p>
+    <div class="row"><button class="btn sm" data-act="reset-zones">Restaurar ritmos</button><button class="btn sm" data-act="reset-routines">${resetArm?'Toca otra vez para confirmar':'Restaurar rutinas de ejemplo'}</button></div></section>`;
+}
+let resetArm=false;
+
+/* ---- editor de rutinas ---- */
+const unitOf=b=>b.kind==='time'?(b.value>=60&&b.value%60===0?'min':'s'):b.kind==='dist'?(b.value>=1000&&b.value%100===0?'km':'m'):'min';
+const amountOf=b=>{const u=unitOf(b);return u==='min'?b.value/60:u==='km'?b.value/1000:b.value};
+const zoneOptions=sel=>[...Object.entries(zones).map(([k,z])=>[k,z.name]),['libre','Libre']].map(([k,n])=>`<option value="${k}" ${k===sel?'selected':''}>${esc(n)}</option>`).join('');
+function edBlock(b,path){
+  const u=unitOf(b);
+  return `<div class="ed-block" data-path="${path}">
+    <input class="in" id="lab-${path}" data-f="label" value="${esc(b.label)}" aria-label="Nombre del bloque" placeholder="Nombre">
+    <div class="ed-line"><input class="in num" id="amt-${path}" data-f="amount" inputmode="decimal" value="${String(amountOf(b)).replace('.',',')}" aria-label="Cantidad">
+    <select class="in" id="unit-${path}" data-f="unit" aria-label="Unidad">${['min','s','m','km'].map(x=>`<option ${x===u?'selected':''}>${x}</option>`).join('')}</select>
+    <select class="in" id="zone-${path}" data-f="zone" aria-label="Ritmo">${zoneOptions(b.zone)}</select>
+    <button class="icon" data-del="${path}" aria-label="Quitar bloque">×</button></div></div>`;
+}
+function viewEditor(){
+  const d=draft;
+  const steps=d.steps.map((s,i)=>s.type==='repeat'?`<div class="ed-repeat"><div class="rep-head"><span class="lbl">Repetir</span><button class="icon" data-rep="${i}" data-dir="-1" aria-label="Una vez menos">−</button><b class="tab">${s.n}</b><button class="icon" data-rep="${i}" data-dir="1" aria-label="Una vez más">+</button><span class="lbl">veces</span><span class="grow"></span><button class="btn sm" data-del="${i}">Quitar</button></div>
+    <div class="ed-list">${s.blocks.map((b,j)=>edBlock(b,i+'.'+j)).join('')}</div><button class="btn sm" data-addin="${i}">+ Bloque dentro</button></div>`:edBlock(s,String(i))).join('');
+  const e=estimate(d.steps);
+  return `<button class="btn sm back" data-act="cancel-edit">← Cancelar</button>
+  <header class="top"><h1>${d.isNew?'Nueva rutina':'Editar rutina'}</h1><p class="sub tab">≈ ${Math.round(e.t/60)} min · ≈ ${fmtKm(e.d,1)} km</p></header>
+  <section class="card"><div class="field"><label for="ed-name">Nombre</label><input class="in" id="ed-name" data-meta="name" value="${esc(d.name)}"></div>
+    <div class="field"><label for="ed-note">Nota (opcional)</label><input class="in" id="ed-note" data-meta="note" value="${esc(d.note||'')}"></div></section>
+  <section><div class="sec-head"><h2>Bloques</h2></div><div class="ed-list">${steps||'<p class="empty">Añade el primer bloque.</p>'}</div>
+    <div class="row" style="margin-top:12px"><button class="btn sm" data-act="add-block">+ Bloque</button><button class="btn sm" data-act="add-repeat">+ Series</button></div></section>
+  <div class="row"><button class="btn primary" style="flex:1" data-act="save-edit">Guardar rutina</button>${d.isNew?'':`<button class="btn danger" data-act="del-routine">${delRoutineArm?'¿Seguro? Toca':'Borrar'}</button>`}</div>`;
+}
+let delRoutineArm=false;
+function stepAt(path){const p=String(path).split('.').map(Number);return p.length===1?draft.steps[p[0]]:draft.steps[p[0]].blocks[p[1]]}
+function rerenderEditor(){const y=window.scrollY;app.innerHTML=viewEditor();window.scrollTo(0,y)}
+function readAmount(path){
+  const b=stepAt(path),blk=document.querySelector(`.ed-block[data-path="${path}"]`);
+  const a=parseFloat(blk.querySelector('[data-f="amount"]').value.replace(',','.')),u=blk.querySelector('[data-f="unit"]').value;
+  if(!(a>0)){blk.querySelector('[data-f="amount"]').classList.add('bad');return}
+  blk.querySelector('[data-f="amount"]').classList.remove('bad');
+  if(u==='min'){b.kind='time';b.value=Math.round(a*60)}else if(u==='s'){b.kind='time';b.value=Math.round(a)}
+  else if(u==='m'){b.kind='dist';b.value=Math.round(a)}else{b.kind='dist';b.value=Math.round(a*1000)}
+  const e=estimate(draft.steps);const sub=$('.top .sub');if(sub)sub.textContent=`≈ ${Math.round(e.t/60)} min · ≈ ${fmtKm(e.d,1)} km`;
+}
+
+/* ============ eventos ============ */
+document.addEventListener('click',e=>{
+  const t=e.target.closest('button');if(!t)return;
+  const ds=t.dataset;
+  if(ds.view){delArm=null;resetArm=false;setView(ds.view);return}
+  if(ds.quick){const z=zones[ds.quick];startRun({id:'libre-'+ds.quick,name:'Carrera libre · '+z.name,steps:[B(z.name,'open',0,ds.quick)]});return}
+  if(ds.start){const r=routines.find(x=>x.id===ds.start);if(r)startRun(r);return}
+  if(ds.edit){const r=routines.find(x=>x.id===ds.edit);draft=clone(r);delRoutineArm=false;setView('editor');return}
+  if(ds.open){delArm=null;setView('detail',ds.open);return}
+  if(ds.test){cue(ds.test);return}
+  if(ds.run){
+    if(ds.run==='go')beginCountdown();
+    else if(ds.run==='cancel'){stopDrivers();wakeOff();run=null;setView('home')}
+    else if(ds.run==='pause')togglePause();
+    else if(ds.run==='skip'){if(run.phase==='running'){if(run.bi>=run.blocks.length-1)finishRun(true);else nextBlock()}}
+    else if(ds.run==='end'){if(Date.now()<run.endArm)finishRun(true);else{run.endArm=Date.now()+3000;updateRun();setTimeout(()=>run&&updateRun(),3100)}}
+    return;
+  }
+  if(ds.delrun){if(delArm===ds.delrun){history=history.filter(h=>h.id!==ds.delrun);store.set('history',history);delArm=null;toast('Entrenamiento borrado');setView('history')}else{delArm=ds.delrun;render()}return}
+  if(ds.del!=null){const p=ds.del.split('.').map(Number);if(p.length===1)draft.steps.splice(p[0],1);else{draft.steps[p[0]].blocks.splice(p[1],1);if(!draft.steps[p[0]].blocks.length)draft.steps.splice(p[0],1)}rerenderEditor();return}
+  if(ds.rep!=null){const s=draft.steps[+ds.rep];s.n=Math.max(1,Math.min(50,s.n+ +ds.dir));rerenderEditor();return}
+  if(ds.addin!=null){draft.steps[+ds.addin].blocks.push(B('Bloque','time',60,'suave'));rerenderEditor();return}
+  switch(ds.act){
+    case 'history':delArm=null;setView('history');break;
+    case 'new':draft={id:'r-'+uid(),name:'Mi rutina',note:'',isNew:true,steps:[B('Calentamiento','time',600,'suave')]};setView('editor');break;
+    case 'add-block':draft.steps.push(B('Bloque','time',600,'suave'));rerenderEditor();break;
+    case 'add-repeat':draft.steps.push(R(4,[B('Serie','dist',400,'series'),B('Recuperación','time',90,'libre')]));rerenderEditor();break;
+    case 'cancel-edit':draft=null;setView('home');break;
+    case 'save-edit':{
+      if(document.querySelector('.ed-block .bad')){toast('Revisa las cantidades marcadas en rojo');break}
+      if(!draft.steps.length){toast('Añade al menos un bloque');break}
+      const r=clone(draft);delete r.isNew;r.name=r.name.trim()||'Mi rutina';
+      const i=routines.findIndex(x=>x.id===r.id);if(i>=0)routines[i]=r;else routines.push(r);
+      store.set('routines',routines);draft=null;toast('Rutina guardada');setView('home');break}
+    case 'del-routine':if(delRoutineArm){routines=routines.filter(x=>x.id!==draft.id);store.set('routines',routines);draft=null;toast('Rutina borrada');setView('home')}else{delRoutineArm=true;rerenderEditor()}break;
+    case 'reset-zones':zones=clone(DEFAULT_ZONES);store.set('zones',zones);toast('Ritmos restaurados');render();break;
+    case 'reset-routines':if(resetArm){routines=clone(DEFAULT_ROUTINES);store.set('routines',routines);resetArm=false;toast('Rutinas restauradas')}else resetArm=true;render();break;
+  }
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.set){const id=t.dataset.set;settings[id]=parseFloat(t.value);store.set('settings',settings);const o=$('#o-'+id);if(o)o.textContent=id==='vol'?Math.round(settings.vol*100)+'%':settings[id]+t.dataset.unit;return}
+  if(t.dataset.meta&&draft){draft[t.dataset.meta]=t.value;return}
+  if(t.dataset.f==='label'&&draft){stepAt(t.closest('.ed-block').dataset.path).label=t.value;return}
+  if(t.dataset.f==='amount'&&draft){readAmount(t.closest('.ed-block').dataset.path);return}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.tog){settings[t.dataset.tog]=t.checked;store.set('settings',settings);return}
+  if(t.dataset.f==='unit'&&draft){readAmount(t.closest('.ed-block').dataset.path);return}
+  if(t.dataset.f==='zone'&&draft){stepAt(t.closest('.ed-block').dataset.path).zone=t.value;const e2=estimate(draft.steps);const sub=$('.top .sub');if(sub)sub.textContent=`≈ ${Math.round(e2.t/60)} min · ≈ ${fmtKm(e2.d,1)} km`;return}
+  if(t.dataset.zone){
+    const k=t.dataset.zone,v=parsePace(t.value),z=zones[k];
+    const other=t.dataset.end==='min'?z.max:z.min;
+    const ok=v!=null&&v>=150&&v<=1200&&(t.dataset.end==='min'?v<other:v>other);
+    if(!ok){t.classList.add('bad');toast('Escribe el ritmo como 6:30, y el primero más rápido que el segundo');return}
+    t.classList.remove('bad');z[t.dataset.end]=v;t.value=fmtPace(v);store.set('zones',zones);toast(`${z.name}: ${fmtPace(z.min)}–${fmtPace(z.max)}`);
+  }
+});
+
+setView('home');
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
