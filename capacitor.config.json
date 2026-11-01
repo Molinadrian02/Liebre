@@ -1,0 +1,11 @@
+{
+  "appId": "es.molinadrian.liebre",
+  "appName": "Liebre",
+  "webDir": "www",
+  "android": {
+    "useLegacyBridge": true
+  },
+  "plugins": {
+    "CapacitorHttp": { "enabled": true }
+  }
+}

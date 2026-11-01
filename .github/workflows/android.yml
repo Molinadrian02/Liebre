@@ -1,0 +1,80 @@
+# Compila la app Android en cada cambio de main y la publica como release (la recoge Obtainium en el móvil).
+name: App Android
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Preparar la web y sincronizar con Android
+        run: npm run sync
+
+      - name: Preparar la clave de firma
+        id: key
+        env:
+          KS_B64: ${{ secrets.LIEBRE_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/liebre.jks"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Falta el secreto LIEBRE_KEYSTORE_B64: se compila una versión de prueba sin publicar."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compilar APK firmado
+        if: steps.key.outputs.signed == 'true'
+        working-directory: android
+        env:
+          LIEBRE_KEYSTORE: ${{ runner.temp }}/liebre.jks
+          LIEBRE_KEYSTORE_PASSWORD: ${{ secrets.LIEBRE_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon -PversionCode=${{ github.run_number }} -PversionName=1.${{ github.run_number }}
+          mv app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/Liebre-1.${{ github.run_number }}.apk"
+
+      - name: Compilar APK de prueba (sin clave)
+        if: steps.key.outputs.signed != 'true'
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon -PversionCode=${{ github.run_number }} -PversionName=1.${{ github.run_number }}
+          mv app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/Liebre-prueba-1.${{ github.run_number }}.apk"
+
+      - name: Guardar APK como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: liebre-apk
+          path: ${{ runner.temp }}/Liebre-*.apk
+
+      - name: Publicar release
+        if: steps.key.outputs.signed == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.${{ github.run_number }}
+          name: Liebre 1.${{ github.run_number }}
+          body: ${{ github.event.head_commit.message }}
+          files: ${{ runner.temp }}/Liebre-1.${{ github.run_number }}.apk

@@ -278,7 +278,7 @@ const DEFAULT_ROUTINES=[
   {id:'r-10k',name:'Ritmo San Silvestre',note:'5 km clavando el ritmo objetivo del 10K.',steps:[B('Calentamiento','time',600,'suave'),B('Ritmo carrera','dist',5000,'carrera'),B('Vuelta a la calma','time',300,'suave')]},
   {id:'r-larga',name:'Tirada larga 8 km',note:'Volumen. Lento a propósito: aquí el objetivo es no pasarte de rápido.',steps:[B('Tirada larga','dist',8000,'suave')]}
 ];
-const DEFAULT_SETTINGS={tol:3,grace:6,repeat:8,vol:0.7,voiceBlocks:true,voiceKm:true,alertVoice:false,sim:false,simSpeed:10,p5:347,autoZones:true};
+const DEFAULT_SETTINGS={tol:3,grace:6,repeat:8,vol:0.7,voiceBlocks:true,voiceKm:true,alertVoice:false,sim:false,simSpeed:10,p5:347,autoZones:true,stravaAuto:true};
 // Todos los rangos salen del ritmo de 5K de referencia (desplazamientos en s/km)
 const OFFS={suave:[63,103],carrera:[13,28],umbral:[8,23],series:[-22,-7]};
 function deriveZones(p5){const z=clone(DEFAULT_ZONES);for(const k in OFFS){z[k].min=p5+OFFS[k][0];z[k].max=p5+OFFS[k][1]}return z}
@@ -305,6 +305,28 @@ function stepsSummary(steps){return steps.map(s=>s.type==='repeat'?`${s.n} × ($
 function midPace(k){const z=zoneOf(k);return z.min!=null?(z.min+z.max)/2:(zones.suave.max+40)}
 function estimate(steps){let t=0,d=0;for(const b of flatten(steps)){const p=midPace(b.zone);if(b.kind==='time'){t+=b.value;d+=b.value/p*1000}else if(b.kind==='dist'){d+=b.value;t+=b.value/1000*p}}return{t,d}}
 
+/* ============ plataforma: app Android (Capacitor) o web ============ */
+const CX=window.capacitorExports;
+const NATIVE=!!(CX&&CX.Capacitor&&CX.Capacitor.isNativePlatform());
+const PL=NATIVE?{BG:CX.registerPlugin('BackgroundGeolocation'),Audio:CX.registerPlugin('NativeAudio'),TTS:CX.registerPlugin('TextToSpeech'),
+  App:CX.registerPlugin('App'),Notif:CX.registerPlugin('LocalNotifications'),Browser:CX.registerPlugin('Browser')}:{};
+const SOUNDS=['fast','slow','ok','block','count','go'];
+async function nativeInit(){
+  if(!NATIVE)return;
+  for(const n of SOUNDS){try{await PL.Audio.preload({assetId:n,assetPath:`public/sounds/${n}.wav`,audioChannelNum:1,isUrl:false})}catch(e){}}
+  try{PL.App.addListener('appUrlOpen',e=>{if(e&&e.url&&e.url.startsWith('liebre://'))stravaHandleRedirect(e.url)})}catch(e){}
+  try{PL.App.addListener('backButton',()=>{
+    if(view==='run')return;
+    if(view==='detail'){setView('history');return}
+    if(view==='editor'){draft=null;setView('home');return}
+    if(view==='plan'&&planDraft&&plan){planDraft=null;setView('plan');return}
+    if(view!=='home'){setView('home');return}
+    PL.App.minimizeApp().catch(()=>{});
+  })}catch(e){}
+  try{const i=await PL.App.getInfo();appVersion=i.version+' ('+i.build+')'}catch(e){}
+}
+let appVersion='web';
+
 /* ============ sonido y voz ============ */
 let ac=null;
 function audioInit(){try{if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume()}catch(e){}}
@@ -322,11 +344,15 @@ const CUES={
   count(){tone(700,.09,0,'triangle')},
   go(){tone(1320,.45,0,'triangle')}
 };
-function cue(n){audioInit();CUES[n]&&CUES[n]()}
+function cue(n){
+  if(NATIVE){PL.Audio.setVolume({assetId:n,volume:settings.vol}).catch(()=>{}).finally(()=>PL.Audio.play({assetId:n,time:0}).catch(()=>{}));return}
+  audioInit();CUES[n]&&CUES[n]();
+}
 let esVoice=null;
 function pickVoice(){try{const vs=speechSynthesis.getVoices();esVoice=vs.find(v=>v.lang==='es-ES')||vs.find(v=>v.lang&&v.lang.startsWith('es'))||null}catch(e){}}
 if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
 function speak(text,urgent){
+  if(NATIVE){PL.TTS.speak({text,lang:'es-ES',rate:1.0,volume:1.0,queueStrategy:urgent?0:1}).catch(()=>{});return}
   if(!('speechSynthesis' in window))return;
   try{if(urgent)speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='es-ES';if(esVoice)u.voice=esVoice;u.rate=1.05;u.volume=Math.min(1,settings.vol+0.3);speechSynthesis.speak(u)}catch(e){}
 }
@@ -335,7 +361,7 @@ function speak(text,urgent){
 const clock={sim:0,now(){return settings.sim?this.sim:Date.now()}};
 let run=null,geoId=null,tickTimer=null,simTimer=null,sim=null,wl=null;
 
-async function wakeOn(){try{if('wakeLock' in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}}
+async function wakeOn(){try{if(!NATIVE&&'wakeLock' in navigator&&!wl){wl=await navigator.wakeLock.request('screen');wl.addEventListener('release',()=>{wl=null})}}catch(e){}}
 function wakeOff(){try{wl&&wl.release()}catch(e){}wl=null}
 document.addEventListener('visibilitychange',()=>{if(run&&document.visibilityState==='visible')wakeOn()});
 window.addEventListener('beforeunload',e=>{if(run&&run.phase==='running'){e.preventDefault();e.returnValue=''}});
@@ -346,23 +372,44 @@ function startRun(routine,planRef){
     points:[],last:null,rejects:0,pace:null,acc:null,lastFixT:0,gpsError:null,state:'none',settling:false,
     outDir:null,outSince:null,lastAlert:0,alerted:false,inMs:0,rangeMs:0,bInMs:0,bRangeMs:0,
     samples:[],lastSampleE:-1e9,splits:[],lastSplitE:0,blockStart:{e:0,d:0},blockStats:[],countSaid:{},said100:false,
-    paused:false,startedAt:null,lastTickT:null,endArm:0,ctrlKey:''};
+    paused:false,startedAt:null,lastTickT:null,endArm:0,ctrlKey:'',track:[]};
   setView('run');
   wakeOn();
   if(settings.sim){
     clock.sim=Date.now();sim={lat:40.4380,lon:-3.8100,ph:Math.random()*6};
     simTimer=setInterval(simStep,1000/settings.simSpeed);simStep();
+  }else if(NATIVE){
+    nativeGeoStart();tickTimer=setInterval(tickReal,1000);
   }else if(!('geolocation' in navigator)){
     run.gpsError='Este navegador no da acceso al GPS.';updateRun();
   }else{
     geoId=navigator.geolocation.watchPosition(
-      p=>onPos(p.coords.latitude,p.coords.longitude,p.coords.accuracy,Date.now()),
+      p=>{onPos(p.coords.latitude,p.coords.longitude,p.coords.accuracy,Date.now(),p.coords.altitude);tickReal()},
       e=>{if(!run)return;run.gpsError=e.code===1?'Permiso de ubicación denegado. Actívalo para esta web en los ajustes de Chrome y vuelve a entrar.':'Todavía no hay señal GPS. Sal a cielo abierto y espera unos segundos.';updateRun()},
       {enableHighAccuracy:true,maximumAge:0,timeout:20000});
-    tickTimer=setInterval(tick,1000);
+    tickTimer=setInterval(tickReal,1000);
   }
 }
-function stopDrivers(){if(geoId!=null)navigator.geolocation.clearWatch(geoId);geoId=null;clearInterval(tickTimer);clearInterval(simTimer);tickTimer=simTimer=null}
+// En la app Android el GPS va en un servicio en primer plano: sigue con la pantalla bloqueada
+async function nativeGeoStart(){
+  try{const st=await PL.Notif.checkPermissions();if(st.display!=='granted')await PL.Notif.requestPermissions()}catch(e){}
+  try{
+    const id=await PL.BG.addWatcher({backgroundTitle:'Liebre · carrera en curso',backgroundMessage:'Registrando ritmo y recorrido. Toca para volver.',requestPermissions:true,stale:false,distanceFilter:0},
+      (loc,err)=>{
+        if(!run)return;
+        if(err){run.gpsError=err.code==='NOT_AUTHORIZED'?'Sin permiso de ubicación. Actívalo en Ajustes de Android → Apps → Liebre → Permisos → Ubicación.':'Todavía no hay señal GPS. Sal a cielo abierto y espera unos segundos.';updateRun();return}
+        onPos(loc.latitude,loc.longitude,loc.accuracy,Date.now(),loc.altitude);tickReal();
+      });
+    if(run)geoId=id;else PL.BG.removeWatcher({id}).catch(()=>{});
+  }catch(e){if(run){run.gpsError='No se ha podido arrancar el GPS: '+(e&&e.message||e);updateRun()}}
+}
+function stopDrivers(){
+  if(geoId!=null){if(NATIVE)PL.BG.removeWatcher({id:geoId}).catch(()=>{});else navigator.geolocation.clearWatch(geoId)}
+  geoId=null;clearInterval(tickTimer);clearInterval(simTimer);tickTimer=simTimer=null;
+}
+// Un tick por segundo como mucho, venga del reloj o de una posición nueva (en segundo plano los temporizadores se frenan)
+let lastTickWall=0;
+function tickReal(){const n=Date.now();if(n-lastTickWall<900)return;lastTickWall=n;tick()}
 
 function simStep(){
   clock.sim+=1000;if(!run)return;
@@ -376,7 +423,7 @@ function simStep(){
   tick();
 }
 
-function onPos(lat,lon,acc,t){
+function onPos(lat,lon,acc,t,alt){
   if(!run)return;run.acc=acc;run.lastFixT=t;run.gpsError=null;
   if(run.phase!=='running'||run.paused){run.last=null;if(run.phase==='ready')updateRun();return}
   if(acc>35)return;
@@ -389,6 +436,8 @@ function onPos(lat,lon,acc,t){
     run.dist+=d;
   }
   run.last=p;run.points.push({t,d:run.dist});
+  const tr=run.track,lastT=tr.length?tr[tr.length-1][2]:-9,ts=Math.round((t-run.startedAt)/1000);
+  if(ts-lastT>=2)tr.push([+lat.toFixed(6),+lon.toFixed(6),ts,alt==null?null:Math.round(alt*10)/10]);
   while(run.points.length&&run.points[0].t<t-60000)run.points.shift();
 }
 
@@ -500,8 +549,13 @@ function finishRun(closeCurrent){
     if(s&&rec.ms>=30000){s.rec=rec.id;s.done=rec.completion>=0.8;s.completion=rec.completion;savePlan()}}
   cue('block');
   if(settings.voiceBlocks)speak(`Entrenamiento terminado. ${fmtKm(rec.m)} kilómetros${rec.inPct!=null?`, ${rec.inPct} por ciento del tiempo en ritmo`:''}.`);
+  const track=run.track;
   run=null;
-  if(rec.ms>=30000){history.unshift(rec);store.set('history',history)}
+  if(rec.ms>=30000){
+    history.unshift(rec);store.set('history',history);
+    if(track.length>=10){rec.hasTrack=true;store.set('track.'+rec.id,{t0:rec.date,pts:track});pruneTracks();store.set('history',history)}
+    if(rec.hasTrack&&!rec.sim&&settings.stravaAuto&&stravaConnected())setTimeout(()=>stravaUpload(rec.id),1500);
+  }
   setView('detail',rec.id,rec);
 }
 
@@ -589,7 +643,7 @@ function updateRun(){
     ov.innerHTML=`<h3>Preparado</h3>
       <div class="gps"><i class="dot ${q}"></i>${a==null?'Buscando GPS…':`GPS: precisión ±${Math.round(a)} m`}</div>
       ${run.gpsError?`<p class="err">${esc(run.gpsError)}</p>`:''}
-      <p>Espera a que la precisión baje de 20 m. Durante la carrera deja la pantalla encendida y Chrome en primer plano: con la pantalla apagada el móvil deja de enviar el GPS a la app.</p>
+      <p>${NATIVE?'Espera a que la precisión baje de 20 m. Después puedes bloquear el móvil y guardarlo: verás una notificación mientras Liebre registra la carrera.':'Espera a que la precisión baje de 20 m. Durante la carrera deja la pantalla encendida y Chrome en primer plano: con la pantalla apagada el móvil deja de enviar el GPS a la app.'}</p>
       <p>Sonidos: <b>tres pitidos agudos</b> = vas rápido, frena. <b>Un tono grave largo</b> = vas lento, aprieta. <b>Dos notas que suben</b> = has vuelto al ritmo.</p>`;
   }else if(run.phase==='countdown'){ov.hidden=false;live.hidden=true;ov.innerHTML=`<div class="cd tab">${run.cd}</div>`}
   else{ov.hidden=true;live.hidden=false;if(run.gpsError&&!run.paused){$('#r-status').textContent=run.gpsError}}
@@ -634,6 +688,7 @@ function viewDetail(rec){
   <section><h2 style="margin-bottom:10px">Ritmo</h2><div class="chart-box">${chartSvg(rec)}</div></section>
   ${rows?`<section><h2 style="margin-bottom:10px">Bloques</h2><div class="tbl-wrap"><table><thead><tr><th>Bloque</th><th>Dist.</th><th>Tiempo</th><th>Ritmo</th><th>En rango</th></tr></thead><tbody>${rows}</tbody></table></div></section>`:''}
   ${splits?`<section><h2 style="margin-bottom:10px">Por kilómetro</h2><div class="tbl-wrap"><table><thead><tr><th>Parcial</th><th>Ritmo</th></tr></thead><tbody>${splits}</tbody></table></div></section>`:''}
+  ${stravaDetail(rec)}
   <div class="row"><button class="btn danger sm" data-delrun="${rec.id}">${delArm===rec.id?'Toca otra vez para borrar':'Borrar entrenamiento'}</button></div>`;
 }
 let delArm=null;
@@ -668,8 +723,12 @@ function viewSettings(){
     ${tg('sim','GPS simulado','Para probar la app en casa. El corredor virtual oscila alrededor del ritmo objetivo.')}
     ${sl('simSpeed','Velocidad de la simulación',1,20,1,'×')}
   </section>
-  <section class="card"><h2>Datos</h2><p class="small">Todo se guarda solo en este móvil, en el navegador. Si borras los datos de Chrome para esta web, se pierde el historial.</p>
-    <div class="row"><button class="btn sm" data-act="reset-zones">Restaurar ritmos</button><button class="btn sm" data-act="reset-routines">${resetArm?'Toca otra vez para confirmar':'Restaurar rutinas de ejemplo'}</button></div></section>`;
+  ${stravaSettings()}
+  <section class="card"><h2>Datos</h2><p class="small">Todo se guarda solo en este móvil${NATIVE?'':', en el navegador. Si borras los datos de Chrome para esta web, se pierde el historial'}. Para pasar tus datos de la web a la app (o a otro móvil), copia la copia de seguridad en un sitio y pégala en el otro.</p>
+    <div class="row"><button class="btn sm" data-act="export">Copiar copia de seguridad</button><button class="btn sm" data-act="import-show">Restaurar copia</button></div>
+    <div id="io-box" hidden class="field"><textarea class="in" id="io-text" rows="5" style="font:13px/1.4 ui-monospace,monospace" aria-label="Copia de seguridad"></textarea><div class="row"><button class="btn sm primary" data-act="import" id="io-import">Restaurar estos datos</button></div></div>
+    <div class="row"><button class="btn sm" data-act="reset-zones">Restaurar ritmos</button><button class="btn sm" data-act="reset-routines">${resetArm?'Toca otra vez para confirmar':'Restaurar rutinas de ejemplo'}</button></div>
+    <p class="small">Versión ${esc(appVersion)}</p></section>`;
 }
 let resetArm=false;
 
@@ -907,6 +966,97 @@ function savePlanDraft(){
   syncPlan();savePlan();planDraft=null;setView('plan');toast('Plan listo');
 }
 
+/* ============ Strava ============ */
+// Cada usuario usa su propia app de la API de Strava (gratis): client id y secret se guardan solo en el móvil.
+const ST_REDIRECT='liebre://localhost/strava';
+const stravaGet=()=>store.get('strava',{});
+const stravaSet=v=>store.set('strava',v);
+const stravaConnected=()=>!!stravaGet().refresh;
+async function stravaPost(url,params){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(params).toString()});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.message||('HTTP '+r.status));return j;
+}
+function stravaConnect(){
+  const st=stravaGet();
+  if(!/^\d+$/.test(st.clientId||'')||!(st.clientSecret||'').length){toast('Pega primero el Client ID y el Client Secret');return}
+  const url='https://www.strava.com/oauth/mobile/authorize?'+new URLSearchParams({client_id:st.clientId,redirect_uri:ST_REDIRECT,response_type:'code',approval_prompt:'auto',scope:'activity:write,read'});
+  if(NATIVE)PL.Browser.open({url}).catch(()=>window.open(url,'_blank'));else window.open(url,'_blank');
+}
+async function stravaHandleRedirect(raw){
+  let code=null,err=null;
+  try{const u=new URL(raw.replace(/^liebre:\/\//,'https://'));code=u.searchParams.get('code');err=u.searchParams.get('error')}catch(e){if(/^[0-9a-f]{20,}$/i.test(raw))code=raw}
+  if(NATIVE)PL.Browser.close().catch(()=>{});
+  if(err){toast('Has cancelado la conexión con Strava');return}
+  if(!code){toast('No encuentro el código en esa dirección');return}
+  const st=stravaGet();
+  try{
+    const j=await stravaPost('https://www.strava.com/oauth/token',{client_id:st.clientId,client_secret:st.clientSecret,code,grant_type:'authorization_code'});
+    if(!(j.scope||'').includes('activity:write')&&j.scope!==undefined){}
+    Object.assign(st,{access:j.access_token,refresh:j.refresh_token,expires:j.expires_at,athlete:j.athlete?((j.athlete.firstname||'')+' '+(j.athlete.lastname||'')).trim():''});
+    stravaSet(st);toast('Strava conectado');if(view==='settings')render();
+  }catch(e){toast('Strava ha rechazado la conexión: '+e.message)}
+}
+async function stravaToken(){
+  const st=stravaGet();if(!st.refresh)throw new Error('Strava no está conectado');
+  if(st.access&&st.expires&&st.expires*1000>Date.now()+120000)return st.access;
+  const j=await stravaPost('https://www.strava.com/oauth/token',{client_id:st.clientId,client_secret:st.clientSecret,refresh_token:st.refresh,grant_type:'refresh_token'});
+  Object.assign(st,{access:j.access_token,refresh:j.refresh_token||st.refresh,expires:j.expires_at});stravaSet(st);return st.access;
+}
+function stravaDisconnect(){const st=stravaGet();stravaSet({clientId:st.clientId,clientSecret:st.clientSecret});toast('Strava desconectado');render()}
+function pruneTracks(){const keep=new Set(history.slice(0,40).map(h=>h.id));try{for(const k of Object.keys(localStorage))if(k.startsWith('liebre.track.')&&!keep.has(k.slice(13)))localStorage.removeItem(k)}catch(e){}}
+function buildGpx(rec,tr){
+  const iso=ms=>new Date(ms).toISOString().replace(/\.\d{3}Z$/,'Z');
+  const pts=tr.pts.map(p=>`<trkpt lat="${p[0]}" lon="${p[1]}">${p[3]!=null?`<ele>${p[3]}</ele>`:''}<time>${iso(tr.t0+p[2]*1000)}</time></trkpt>`).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Liebre" xmlns="http://www.topografix.com/GPX/1/1">\n<metadata><time>${iso(tr.t0)}</time></metadata>\n<trk><name>${esc(rec.name)}</name><type>running</type><trkseg>\n${pts}\n</trkseg></trk>\n</gpx>`;
+}
+const stravaDesc=rec=>[rec.inPct!=null?`${rec.inPct}% del tiempo en ritmo`:'',rec.rpe?`Esfuerzo: ${RPE[rec.rpe].toLowerCase()}`:'',rec.plan&&plan?`Plan ${plan.goalName}`:'','Registrado con Liebre'].filter(Boolean).join(' · ');
+async function stravaUpload(id){
+  const rec=history.find(h=>h.id===id);if(!rec)return;
+  const tr=store.get('track.'+id,null);if(!tr){toast('Este entrenamiento no tiene recorrido GPS guardado');return}
+  const save=x=>{rec.strava=Object.assign(rec.strava||{},x);store.set('history',history);if(view==='detail'&&viewArg===id)render()};
+  save({state:'uploading',error:null});
+  try{
+    const tok=await stravaToken();
+    const fd=new FormData();
+    fd.append('file',new Blob([buildGpx(rec,tr)],{type:'application/gpx+xml'}),`liebre-${id}.gpx`);
+    fd.append('data_type','gpx');fd.append('activity_type','run');fd.append('name',rec.name);fd.append('description',stravaDesc(rec));fd.append('external_id','liebre-'+id);
+    const r=await fetch('https://www.strava.com/api/v3/uploads',{method:'POST',headers:{Authorization:'Bearer '+tok},body:fd});
+    let j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.message||('HTTP '+r.status));
+    for(let i=0;i<15&&!j.activity_id&&!j.error;i++){
+      await new Promise(res=>setTimeout(res,2000));
+      const q=await fetch('https://www.strava.com/api/v3/uploads/'+j.id,{headers:{Authorization:'Bearer '+tok}});j=await q.json().catch(()=>j);
+    }
+    if(j.activity_id){save({state:'done',activityId:j.activity_id});toast('Subido a Strava')}
+    else if(j.error){const dup=String(j.error).match(/activities\/(\d+)|activity (\d+)/);if(/duplicate/i.test(j.error)&&dup)save({state:'done',activityId:dup[1]||dup[2]});else throw new Error(j.error)}
+    else save({state:'processing',uploadId:j.id});
+  }catch(e){save({state:'error',error:String(e.message||e)});toast('No se ha podido subir a Strava')}
+}
+function stravaDetail(rec){
+  if(!NATIVE||rec.sim||!rec.hasTrack)return '';
+  const st=rec.strava||{};
+  if(st.state==='done')return `<p class="small"><span class="pill good">En Strava</span> <button class="btn sm" data-act="strava-open" data-aid="${st.activityId}">Ver la actividad</button></p>`;
+  if(st.state==='uploading')return `<p class="small"><span class="pill mid">Subiendo a Strava…</span></p>`;
+  if(!stravaConnected())return `<p class="small">Conecta Strava en Ajustes para subir tus carreras.</p>`;
+  return `<div class="row">${st.state==='error'?`<span class="small err">${esc(st.error)}</span>`:''}<button class="btn sm" data-act="strava-up" data-rec="${rec.id}">${st.state==='error'?'Reintentar subida a Strava':st.state==='processing'?'Comprobar en Strava':'Subir a Strava'}</button></div>`;
+}
+function stravaSettings(){
+  if(!NATIVE)return `<section class="card"><h2>Strava</h2><p class="small">La subida automática a Strava está en la app de Android.</p></section>`;
+  const st=stravaGet();
+  if(stravaConnected())return `<section class="card"><h2>Strava</h2><p class="small"><span class="pill good">Conectado</span> ${esc(st.athlete||'')}</p>
+    <label class="toggle" for="t-stravaAuto"><span><span class="lbl">Subir cada carrera al terminar</span><br><span class="small">Con recorrido GPS, nombre de la sesión y % en ritmo.</span></span><input type="checkbox" id="t-stravaAuto" data-tog="stravaAuto" ${settings.stravaAuto?'checked':''}></label>
+    <div class="row"><button class="btn sm danger" data-act="strava-off">Desconectar</button></div></section>`;
+  return `<section class="card"><h2>Strava</h2>
+    <ol class="small" style="padding-left:18px;margin:0;display:flex;flex-direction:column;gap:6px">
+      <li>Abre <b>strava.com/settings/api</b> en el navegador y crea una aplicación: nombre «Liebre», categoría «Training», web cualquiera (por ejemplo tu GitHub) y en <b>Authorization Callback Domain</b> escribe <b>localhost</b>.</li>
+      <li>Copia aquí el <b>Client ID</b> y el <b>Client Secret</b> que te da.</li>
+      <li>Pulsa «Conectar con Strava» y acepta.</li></ol>
+    <div class="field"><label for="st-id">Client ID</label><input class="in" id="st-id" data-st="clientId" inputmode="numeric" value="${esc(st.clientId||'')}"></div>
+    <div class="field"><label for="st-sec">Client Secret</label><input class="in" id="st-sec" data-st="clientSecret" type="password" autocomplete="off" value="${esc(st.clientSecret||'')}"></div>
+    <button class="btn primary" data-act="strava-connect">Conectar con Strava</button>
+    <details><summary class="small">¿No vuelve a Liebre después de aceptar?</summary><div class="field" style="margin-top:8px"><label for="st-url">Pega la dirección de la página a la que te llevó</label><input class="in" id="st-url" placeholder="liebre://localhost/strava?code=…"><button class="btn sm" data-act="strava-code">Usar este código</button></div></details>
+  </section>`;
+}
+
 /* ============ eventos ============ */
 document.addEventListener('click',e=>{
   const t=e.target.closest('button');if(!t)return;
@@ -929,7 +1079,7 @@ document.addEventListener('click',e=>{
     else if(ds.run==='end'){if(Date.now()<run.endArm)finishRun(true);else{run.endArm=Date.now()+3000;updateRun();setTimeout(()=>run&&updateRun(),3100)}}
     return;
   }
-  if(ds.delrun){if(delArm===ds.delrun){history=history.filter(h=>h.id!==ds.delrun);store.set('history',history);delArm=null;toast('Entrenamiento borrado');setView('history')}else{delArm=ds.delrun;render()}return}
+  if(ds.delrun){if(delArm===ds.delrun){history=history.filter(h=>h.id!==ds.delrun);store.set('history',history);try{localStorage.removeItem('liebre.track.'+ds.delrun)}catch(e){}delArm=null;toast('Entrenamiento borrado');setView('history')}else{delArm=ds.delrun;render()}return}
   if(ds.del!=null){const p=ds.del.split('.').map(Number);if(p.length===1)draft.steps.splice(p[0],1);else{draft.steps[p[0]].blocks.splice(p[1],1);if(!draft.steps[p[0]].blocks.length)draft.steps.splice(p[0],1)}rerenderEditor();return}
   if(ds.rep!=null){const s=draft.steps[+ds.rep];s.n=Math.max(1,Math.min(50,s.n+ +ds.dir));rerenderEditor();return}
   if(ds.addin!=null){draft.steps[+ds.addin].blocks.push(B('Bloque','time',60,'suave'));rerenderEditor();return}
@@ -939,6 +1089,20 @@ document.addEventListener('click',e=>{
     case 'cancel-plan':planDraft=null;setView('plan');break;
     case 'del-plan':if(delPlanArm){plan=null;store.set('plan',null);delPlanArm=false;planDraft=null;toast('Plan borrado')}else delPlanArm=true;render();break;
     case 'save-plan':savePlanDraft();break;
+    case 'export':{const data=JSON.stringify({liebre:1,history,routines,zones,plan,settings:Object.assign({},settings,{sim:false})});const box=$('#io-box'),ta=$('#io-text');box.hidden=false;ta.value=data;$('#io-import').hidden=true;
+      (navigator.clipboard?navigator.clipboard.writeText(data):Promise.reject()).then(()=>toast('Copiada al portapapeles. Pégala en una nota o mándatela.'),()=>{ta.select();toast('Selecciona y copia el texto')});break}
+    case 'import-show':{const box=$('#io-box');box.hidden=false;$('#io-text').value='';$('#io-import').hidden=false;$('#io-text').focus();break}
+    case 'import':{try{const d=JSON.parse($('#io-text').value);if(!d||d.liebre!==1)throw 0;
+      const ids=new Set(history.map(h=>h.id));history=[...history,...(d.history||[]).filter(h=>!ids.has(h.id))].sort((a,b)=>b.date-a.date);store.set('history',history);
+      if(d.routines)routines=d.routines,store.set('routines',routines);if(d.plan)plan=d.plan,savePlan();
+      if(d.settings){const keep={sim:settings.sim,stravaAuto:settings.stravaAuto};settings=Object.assign({},DEFAULT_SETTINGS,d.settings,keep);store.set('settings',settings)}
+      zones=settings.autoZones?deriveZones(settings.p5):Object.assign(clone(DEFAULT_ZONES),d.zones||{});store.set('zones',zones);
+      toast('Datos restaurados');render()}catch(e){toast('Ese texto no es una copia de seguridad de Liebre')}break}
+    case 'strava-connect':stravaConnect();break;
+    case 'strava-code':stravaHandleRedirect($('#st-url').value.trim());break;
+    case 'strava-off':stravaDisconnect();break;
+    case 'strava-open':{const url='https://www.strava.com/activities/'+ds.aid;if(NATIVE)PL.Browser.open({url}).catch(()=>{});else window.open(url,'_blank');break}
+    case 'strava-up':stravaUpload(ds.rec);break;
     case 'new':draft={id:'r-'+uid(),name:'Mi rutina',note:'',isNew:true,steps:[B('Calentamiento','time',600,'suave')]};setView('editor');break;
     case 'add-block':draft.steps.push(B('Bloque','time',600,'suave'));rerenderEditor();break;
     case 'add-repeat':draft.steps.push(R(4,[B('Serie','dist',400,'series'),B('Recuperación','time',90,'libre')]));rerenderEditor();break;
@@ -959,6 +1123,7 @@ document.addEventListener('input',e=>{
   if(t.dataset.set){const id=t.dataset.set;settings[id]=parseFloat(t.value);store.set('settings',settings);const o=$('#o-'+id);if(o)o.textContent=id==='vol'?Math.round(settings.vol*100)+'%':settings[id]+t.dataset.unit;return}
   if(t.dataset.meta&&draft){draft[t.dataset.meta]=t.value;return}
   if(t.dataset.pd&&planDraft&&t.tagName==='INPUT'){planDraft[t.dataset.pd]=t.value;return}
+  if(t.dataset.st){const st=stravaGet();st[t.dataset.st]=t.value.trim();stravaSet(st);return}
   if(t.dataset.f==='label'&&draft){stepAt(t.closest('.ed-block').dataset.path).label=t.value;return}
   if(t.dataset.f==='amount'&&draft){readAmount(t.closest('.ed-block').dataset.path);return}
 });
@@ -980,7 +1145,8 @@ document.addEventListener('change',e=>{
 });
 
 setView('home');
-if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+nativeInit().then(()=>{if(view==='settings')render()});
+if(!NATIVE&&'serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
 </html>
